@@ -1,6 +1,0 @@
-#+TITLE: 首页
-#+begin_center
-[[file:sitemap.html][导航栏]]
-记录日常学习笔记，心得，待办事项等待。
-#+end_center
-

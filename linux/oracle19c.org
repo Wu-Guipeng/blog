@@ -1,30 +1,36 @@
 #+TITLE: Oracle 19c 数据库的使用记录
-
+#+AUTHOR: wuguipeng
 * 说明
   想当年大学的时候安装一个Mysql我都觉得麻烦，在主力机windows10上安装，各种安装失败，删除删不干净，乱码，服务启动不起来等种种问题。
   如果是第一次安装大概率会安装失败,所以我建议安装这些复杂的软件时使用虚拟机。虚拟机可以进行快照，但安装失败的时候可以回滚到安装前的系统状态。
 
   相对于oracle,mysql还是挺简单的，是的，挺简单的，mysql数据存储就是一个数据库(database)下有多张表(table),然后一个root用户管理用于管理其他用户的权限。
 
-  而今天的主题是oracle数据库，oracle数据库的概念就非常多了，有CDB,PDB,用户sys,system,空间表，临时空间表等等。反正我在写这篇文章的时候还没有理清这些概念。
+  今天需要安装的是Oracle-19c数据库，这个数据库相对mysql来所复杂了许多，配置页很麻烦，安装包就有将近3GB，网上很多教程都是使用图形化界面安装的，而我这是使用的是服务器，所以是没有图形化安装的，上手还是有些难度的。
 
 * 安装
 ** 安装环境说明
    oracle数据库最好是在红帽系的发行版中安装(Centos7,Centos8,Oracle linux7, Oracle linux8)，debain系安装基本没啥教程。
-   系统: Centos8
-   oracle版本：oracle 19.3.0
-   虚拟机: VirtualBox
+   + 系统: Centos8
+
+   + oracle版本：oracle 19.3.0
+
+   + 虚拟机: VirtualBox
 
    [[https://oracle-base.com/articles/19c][官方]]安装教程，官方教程中只有Oracle linux和fodora下的安装教程，不过centos也是可以的，有些地方直接抄官方的，有些地方需要根据自己系统来决定。
 
-   系统安装什么这里就不多说了在安装之前最好先更新下系统(yum update)
+** 更新系统
+   系统安装什么这里就不多说了在安装之前最好先更新下系统。
+   #+begin_src shell
+     yum update
+   #+end_src
 
 ** hosts文件
    在 =/etc/hosts= 文件中添加一条记录
    #+begin_src shell
      <IP>  <hostname>.localdomain  <hostname>
    #+end_src
-   ip地址使用ip a或者ipconfg都是可以的, hostname就是主机名，直接使用hostname查看
+   ip地址使用ip a或者ipconfg都是可以的。hostname就是主机名，直接使用hostname查看
    #+begin_src shell
      # 查看ip
      [oracle@MiWiFi-R4A-srv admin]$ ip a
@@ -40,8 +46,6 @@
 	    valid_lft 38971sec preferred_lft 38971sec
 	 inet6 fe80::a00:27ff:feee:34d6/64 scope link noprefixroute 
 	    valid_lft forever preferred_lft forever
-     [oracle@MiWiFi-R4A-srv admin]$ 
-
      # 查看hostname
      [oracle@MiWiFi-R4A-srv admin]$ hostname
      MiWiFi-R4A-srv
@@ -53,23 +57,21 @@
    #+end_src
 
 ** 先决条件
-   自动设置和手动设置选择一种即可。怎么方便怎么来
-*** 自动设置
+   自动设置和手动设置选择一种即可，怎么方便怎么来。
+*** 自动设置（推荐）
    /如果是Oracle Linux系统的话直接运行下面命令即可：/
    #+begin_src shell
      yum update -y # 更新系统
-
      dnf install -y oracle-database-preinstall-19c # 安装依赖
    #+end_src
 
    /如果是RHEL8 or CentOS8系统，使用下面命令安装即可：/
    #+begin_src shell
      curl -o oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm https://yum.oracle.com/repo/OracleLinux/OL8/appstream/x86_64/getPackage/oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
-
      yum -y localinstall oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
    #+end_src
-
-*** 手动设置
+   如果是其他发行版本，记得更改相应的源即可。
+*** 手动设置（动手能力强的，不过自动设置的查看下这些配置文件）
     /在 =/etc/sysctl.conf= 文件中添加以下内容：/
     #+begin_src shell
       fs.file-max = 6815744
@@ -164,9 +166,6 @@
       ./install.sh
     #+end_src
 
-    等待安装完成即可。
-
-
     /创建用户和用户组:/
     #+begin_src shell
       groupadd -g 54321 oinstall
@@ -181,7 +180,6 @@
       #groupadd -g 54330 racdba
 
       useradd -u 54321 -g oinstall -G dba,oper oracle
-
 
       passwd oracle # 设置密码
     #+end_src
@@ -203,7 +201,8 @@
       systemctl stop firewalld # 停止防火墙
       systemctl disable firewalld # 禁止开机启动
     #+end_src
-
+    这部分也可以直接打开1521端口即可。
+    
     /创建oracle数据库安装目录:/
     #+begin_src shell
       mkdir -p /u01/app/oracle/product/19.0.0/dbhome_1 # 安装目录
@@ -281,7 +280,7 @@
 
     现在不需要运行这两个脚本
 
-** 安装
+** 开始安装
    完成上面的依赖和相关配置之后，就可以安装了。
 
    下载[[https://www.oracle.com/database/technologies/oracle-database-software-downloads.html][LINUX.X64_193000_db_home.zip]]安装包, 下载的时候需要登录帐号，没有帐号的需要注册。
@@ -320,9 +319,8 @@
 	 oracle.install.db.OSRACDBA_GROUP=dba                                       \
 	 SECURITY_UPDATES_VIA_MYORACLESUPPORT=false                                 \
    #+end_src
-
-
-       
+   安装的过程可能会出现警告信息，不过只要没有停止安装都是可以忽略的，最后安装成功会提示在root用户下允许两个脚本，按照提示运行即可。
+  
 ** 创建数据库
    #+begin_src shell
      # Start the listener. 开启监听
@@ -394,7 +392,6 @@
       一般情况下服务器的内存都不会很高，官方设置的是2000M,2000M就意味着我们的系统内存至少要在2000M以上，不然很容易安装不成功。
 
       我们可以根据自己的系统来设置，比如系统内存有1000M,我们就可以将内存设置为800M左右，或者更小。
-
 
 * 启动和停止数据库
   现在我们就可以运行之前设置的两个脚本了
@@ -473,8 +470,7 @@
    #+end_src
 
    如果停止失败查看日志
-
-   
+ 
 * 修改sys,system用户密码，创建CDB用户和PDB用户
 ** sys用户登录
    /使用sys用户登录：/
@@ -540,7 +536,6 @@
      ORACLE instance shut down.
    #+end_src
    关于这个错误查看这篇[[https://blog.csdn.net/ZHUIMENGZHONG/article/details/46049577][博客]]
-
    /重新启动之后：/
    #+begin_src shell
      SQL>  startup mount
@@ -558,7 +553,7 @@
      Database altered.
    #+end_src
 
-   
+   到这里数据库就能用了。
    
    /修改sys,system用户密码:/
    #+begin_src shell
@@ -692,8 +687,113 @@
    #+end_src
 
 
-   
-
 ** 配置TNS远程的登录
    参考[[https://blog.csdn.net/weixin_43885834/article/details/104435592][博客]]
+*** 配置监听(listener.ora)
+    在服务端配置监听，在 =$ORACLE_HOME/network/admin= 下创建 =listener.ora= 文件:
+   #+begin_src shell
+     LISTENER =
+       (DESCRIPTION_LIST =
+	 (DESCRIPTION =
+	   (ADDRESS = (PROTOCOL = TCP)(HOST = oracle)(PORT = 1521)) # 配置监听的主机和端口，这里需要使用主机名，如果使用127.0.0.1，只能本地登录，不能远程
+	   (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC1521))
+	 )
+       )
+
+     SID_LIST_LISTENER =
+       (SID_LIST =
+	 (SID_DESC = # 配置CDB，之前创建数据库时配置的也可以使用select * from global_name;查看
+	   (GLOBAL_DBNAME = GDB1)
+	   (ORACLE_HOME = /u01/app/oracle/product/19.0.0/dbhome_1)
+	   (SID_NAME = GDB1_SID) # sid随便取一个就行这是一个标识符，非参数
+	 )
+	 (SID_DESC = # 配置PDB，需要切换到PDB模式下查看，切换alter session set container=pdb1;  查看select * from global_name;
+	   (GLOBAL_DBNAME = PDB1)
+	   (SID_NAME = PDB1_SID)
+	 )
+	 )
+     ADR_BASE_LISTENER=/u01/app/oracle
+   #+end_src
+
+   配置之后运行下面命令：
+   #+begin_src shell
+     lsnrctl stop  # 停止监听
+     lsnrctl start # 启动监听
+     lsnrctl status #查看监听
+   #+end_src
+
+   确保运行成功。
+
+*** 配置sqlnet.ora
+    这个文件是在客户端的，通过这个文件来决定怎样查找一个连接中出现的服务
+
+    /sqlnet.ora:/
+    #+begin_src shell
+      SQLNET.AUTHENTICATION_SERVICES= (NTS) 
+      NAMES.DIRECTORY_PATH= (TNSNAMES,HOSTNAME,EZCONNECT) 
+    #+end_src
+
+    当客户端输入
+    #+begin_src shell
+      sqlplus system/manager@GDB1
+    #+end_src
+    那么，客户端首先会在tnsnames.ora 文件中查找GDB1这个记录，如果没有这个记录会将GDB1当成ip地址去解析。
+
+*** 配置tnsnames.ora
+    根据客户端输入的记录映射到对应的主机和端口，还有一些其他规则，简单点来说就是在用户登录的时候，只需要用户和密码，登录的主机名和端口都在这个文件里面，我们只需要在登录的之后指点这天记录就行了。
+
+    /tnsnames.ora:/
+    #+begin_src shell
+      GDB1 =
+	(DESCRIPTION =
+	  (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+	  (CONNECT_DATA =
+	    (SERVER = DEDICATED)
+	    (SERVICE_NAME = GDB1) # 连接GDB1下的用户
+	  )
+	)
+      PDB1 =
+	(DESCRIPTION =
+	  (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+	  (CONNECT_DATA =
+	    (SERVER = DEDICATED)
+	    (SERVICE_NAME = PDB1) # 连接PDB1下的用户
+	  )
+	)
+
+      LISTENER_ORCLCDB =
+	(ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+    #+end_src
+
+    
+
+    
    
+
+*** 用户登录说明
+    不同的用户的权限是不一样的，登录的数据库也是不一样的，登录的方法也是不一样的。
+
+    + sys用户只能本地登录，不能使用远程登录，相应的，它拥有最高权限。
+      #+begin_src shell
+	sqlplus sys/manager as sysdba
+      #+end_src
+    + system用户能使用远程登录，可以登录CDB和PDB数据库。
+      #+begin_src shell
+	sqlplus system/manager@GDB1
+	sqlplus system/manager@PDB1
+      #+end_src
+    + CDB用户以C##开头，可以登录CDB和PDB数据库。
+      #+begin_src shell
+	sqlplus C##kunpeng/wuguipeng@GDB1
+	sqlplus C##kunpeng/wuguipeng@PDB1
+      #+end_src
+    + PDB用户，只能登录PDB数据库。
+      #+begin_src shell
+	sqlplus kunpeng/wuguipeng@PDB1
+      #+end_src
+
+
+* 总结
+  在经过两天的折腾，总算把oracle搞起来了，我想我应该短时间内不会想着去删除了，安装过程太折磨人了，各种报错，也可能是我的服务器配置太低导致的把，我在服务器上安装之前是先在本地虚拟机安装过一次了的，本地虚拟机配置高点，安装起来倒是挺块的，没有那么多报错。
+
+  这只是oracle数据库的冰山一角，不愧是企业级的数据库解决方案，相比mysql确实复杂很多。还有空间表，本地连接远程的没有说，这里完成的也只是能够使用oracle数据库而已，不过也是一个很好的开头。
