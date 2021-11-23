@@ -1,0 +1,10 @@
+#+TITLE: LocalDate转为JSON的问题
+*** 问题描述
+    我自己编写了一个 =JsonUtils= 工具类，但是在转换的过程中，如果有 =LocalDate= 时间之类的属性的时候是无法进行转换的。
+*** 解决方法
+    在属性字段的上面添加这两个注解
+    #+begin_src java
+      @JsonSerialize(using = LocalDateSerializer.class)
+      @JsonDeserialize(using = LocalDateDeserializer.class)
+      private LocalDate startDate;
+    #+end_src

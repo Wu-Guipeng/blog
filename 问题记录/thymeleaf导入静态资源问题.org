@@ -1,0 +1,8 @@
+#+TITLE: SpringBoot中thymeleaf导入静态资源问题
+*** 问题描述
+    在 ~@Controller~ 类上使用 ~@RequestMapping~ 注解，html中引用静态资源时，如果使用的是相对路径，静态资源路径也会加上 ~@RequestMapping~ 中的路径，导致访问不到static中的静态资源。
+*** 解决方法
+    在引用静态资源时，使用绝对路径，thymeleaf语法为:
+    #+begin_src html
+      <link rel="stylesheet" th:href="@{/css/font.css}">
+    #+end_src
