@@ -1,0 +1,35 @@
+#+TITLE: Linux 服务器中创建swap交换文件
+
+* ubuntu 20.04中
+  在本地计算机中我们可以使用一个分区格式化为swap，而服务器中硬盘有限，只能创建一个交换文件将其格式话为swap。
+
+** 创建swapfile文件
+   #+begin_src shell
+     sudo fallocate -l 2G /swapfile # 在根目录中创建一个swapfile,容量为2G
+   #+end_src
+
+** 赋予swapfile文件相应的权限
+   #+begin_src shell
+     sudo chmod 600 /swapfile
+   #+end_src
+
+** 将swapfile文件格式化为swap
+   #+begin_src shell
+     sudo mkswap /swapfile
+   #+end_src
+
+** 激活交换文件
+   #+begin_src shell
+     sudo swapon /swapfile
+   #+end_src
+
+** 写入/etc/fstab
+   写入fstab开机自动挂载
+   #+begin_src shell
+     /swapfile swap swap defaults 0 0
+   #+end_src
+
+** 卸载swapfile
+   #+begin_src shell
+     sudo swapoff /swapfile
+   #+end_src

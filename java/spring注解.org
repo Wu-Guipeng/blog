@@ -1,0 +1,11 @@
+#+TITLE: Spring 注解大全
+#+AUTHOR: wuguipeng
+#+DATA: 2021-11-07
+
+| 注解        | 来源      | 说明                                 |
+|-------------+-----------+--------------------------------------|
+| @Component  | spring    | spring的基本组件，spring会扫描该组件 |
+| @Controller | springmvc | mvc的控制层                          |
+| @Service    | spring    | spring的业务层                       |
+| @Mapper     | mybatis   | 数据持久层                           |
+|             |           |                                      |

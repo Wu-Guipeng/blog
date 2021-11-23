@@ -1,0 +1,83 @@
+* 练习册管理系统
+** 前言
+SCHEDULED: <2021-10-21 周四>
+自从2021年9月16上班以来，一个月以来逐渐的熟悉公司的业务和我所作的部分。自从熟悉了业务之后，我也使用Python写了几个自动化程序帮助我提高工作效率，但是，我每天还是会想着如果通过程序提高我的工作效率，并且通过不断的写代码提高自己的编程技能。
+
+我目前这份工作用到编程的知识很少，也并非我理想中的工作，所以我还是需要不断的积累，提升自己。
+
+在这一个月的时间里，我每天都有看Java后端开发，虽然一直在学习，但是没有实际做过项目，这也是目前以我的水平很难找Java开发工作的原因。
+
+今天我打开腾讯文档的时候，发现我每天都在填写这个文档，导致文档越来越大，打开速度也越来月慢，其实我很想把之前的给删了，但是有时候还是有用的，所以就没有删。我就在想，能不能将这些数据存入数据库，一想，存入数据库之后我是不是还需要写个网页，来管理这些数据，所有我就萌生出用java来写这个客户端的想法。
+
+** 数据库设计
+在我初次对这个管理系统的设想并不复杂，账号并不需要对外开发注册，只需要有一个账号能够登入就行，所以User表只有三个字段，book表就相对来说字段就比较多，有十多条，但是也没有多复杂，一条数据对应一条excel中一行数据就行。
+User表
+#+begin_src sql
+  create table `user`(
+         id int(4) not null primary key,
+         username varchar(20) not null,
+         password varchar(20) not null
+  )engine=innodb default charset=utf8
+
+  insert into user (id,username,password) values (1,'wuguipeng','password');
+#+end_src
+
+Book表
+#+begin_src sql
+  create table  `book`
+  (
+      BookId               varchar(50)  not null primary key,
+      BookName             varchar(100) not null,
+      BookScanData         Date         not null,
+      PreLabeledPerson     varchar(10),
+      LabelCompany         varchar(10),
+      SendLabelCompanyDate Date,
+      CompleteLabelData    Date,
+      BookPriority         varchar(20),
+      BookStatus           int(2) not null,
+      Remark               varchar(50),
+      version              varchar(10)
+  )engine=innodb default charset=utf8
+#+end_src
+
+BookId 使用的是uuid，没有使用数字自增，如果使用数组自增的话，可能会删除某条数据，导致id不连续，所以使用uuid。
+
+** DONE Mybatis实现增删改查
+现在的GURD功能还是非常简单的，后续还需要复杂一点的查询，但是也不会用到多表联查。
++ 查询所有练习册
++ 根据练习册名称查询
++ 根据练习册id查询
++ 修改练习册
++ 删除练习册
++ 增加练习册 （这一部分后面使用python代码批量插入数据 ，修改练习册状态）
+
+后面再更具使用体验进行修改，添加css样式等等。
+
+  
+** DONE 添加根据名称进行模糊查询
+   SCHEDULED: <2021-10-29 周五>
+
+** 练习册修改状态使用下拉列表
+
+
+** 根据扫描日期查询
+
+** 根据任务分配日期查询
+
+** 根据完成标注日期查询
+
+** 指定时间段查询
+
+** DONE 分页
+   SCHEDULED: <2021-10-29 周五>
+** DONE 使用python批量添加练习册状态
+   SCHEDULED: <2021-10-22 周五>
+
+** 使用python批量修改练习册状态
+
+
+** DONE 优化UI页面
+   SCHEDULED: <2021-10-29 周五>
+   
+** DONE 仪表盘功能
+   SCHEDULED: <2021-10-29 

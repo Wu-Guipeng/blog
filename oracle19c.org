@@ -1,0 +1,699 @@
+#+TITLE: Oracle 19c 数据库的使用记录
+
+* 说明
+  想当年大学的时候安装一个Mysql我都觉得麻烦，在主力机windows10上安装，各种安装失败，删除删不干净，乱码，服务启动不起来等种种问题。
+  如果是第一次安装大概率会安装失败,所以我建议安装这些复杂的软件时使用虚拟机。虚拟机可以进行快照，但安装失败的时候可以回滚到安装前的系统状态。
+
+  相对于oracle,mysql还是挺简单的，是的，挺简单的，mysql数据存储就是一个数据库(database)下有多张表(table),然后一个root用户管理用于管理其他用户的权限。
+
+  而今天的主题是oracle数据库，oracle数据库的概念就非常多了，有CDB,PDB,用户sys,system,空间表，临时空间表等等。反正我在写这篇文章的时候还没有理清这些概念。
+
+* 安装
+** 安装环境说明
+   oracle数据库最好是在红帽系的发行版中安装(Centos7,Centos8,Oracle linux7, Oracle linux8)，debain系安装基本没啥教程。
+   系统: Centos8
+   oracle版本：oracle 19.3.0
+   虚拟机: VirtualBox
+
+   [[https://oracle-base.com/articles/19c][官方]]安装教程，官方教程中只有Oracle linux和fodora下的安装教程，不过centos也是可以的，有些地方直接抄官方的，有些地方需要根据自己系统来决定。
+
+   系统安装什么这里就不多说了在安装之前最好先更新下系统(yum update)
+
+** hosts文件
+   在 =/etc/hosts= 文件中添加一条记录
+   #+begin_src shell
+     <IP>  <hostname>.localdomain  <hostname>
+   #+end_src
+   ip地址使用ip a或者ipconfg都是可以的, hostname就是主机名，直接使用hostname查看
+   #+begin_src shell
+     # 查看ip
+     [oracle@MiWiFi-R4A-srv admin]$ ip a
+     1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+	 link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+	 inet 127.0.0.1/8 scope host lo
+	    valid_lft forever preferred_lft forever
+	 inet6 ::1/128 scope host 
+	    valid_lft forever preferred_lft forever
+     2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+	 link/ether 08:00:27:ee:34:d6 brd ff:ff:ff:ff:ff:ff
+	 inet 192.168.31.117/24 brd 192.168.31.255 scope global dynamic noprefixroute enp0s3
+	    valid_lft 38971sec preferred_lft 38971sec
+	 inet6 fe80::a00:27ff:feee:34d6/64 scope link noprefixroute 
+	    valid_lft forever preferred_lft forever
+     [oracle@MiWiFi-R4A-srv admin]$ 
+
+     # 查看hostname
+     [oracle@MiWiFi-R4A-srv admin]$ hostname
+     MiWiFi-R4A-srv
+   #+end_src
+
+   192.168.31.117和MiWiFi-R4A-srv就是我们需要的ip地址和主机名，所以host文件中添加的记录为:
+   #+begin_src shell
+     192.168.31.177 MiWiFi-R4A-srv.localdomain MiWiFi-R4A-srv
+   #+end_src
+
+** 先决条件
+   自动设置和手动设置选择一种即可。怎么方便怎么来
+*** 自动设置
+   /如果是Oracle Linux系统的话直接运行下面命令即可：/
+   #+begin_src shell
+     yum update -y # 更新系统
+
+     dnf install -y oracle-database-preinstall-19c # 安装依赖
+   #+end_src
+
+   /如果是RHEL8 or CentOS8系统，使用下面命令安装即可：/
+   #+begin_src shell
+     curl -o oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm https://yum.oracle.com/repo/OracleLinux/OL8/appstream/x86_64/getPackage/oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
+
+     yum -y localinstall oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
+   #+end_src
+
+*** 手动设置
+    /在 =/etc/sysctl.conf= 文件中添加以下内容：/
+    #+begin_src shell
+      fs.file-max = 6815744
+      kernel.sem = 250 32000 100 128
+      kernel.shmmni = 4096
+      kernel.shmall = 1073741824
+      kernel.shmmax = 4398046511104
+      kernel.panic_on_oops = 1
+      net.core.rmem_default = 262144
+      net.core.rmem_max = 4194304
+      net.core.wmem_default = 262144
+      net.core.wmem_max = 1048576
+      net.ipv4.conf.all.rp_filter = 2
+      net.ipv4.conf.default.rp_filter = 2
+      fs.aio-max-nr = 1048576
+      net.ipv4.ip_local_port_range = 9000 65500
+    #+end_src
+
+    /更新/
+    #+begin_src shell
+      /sbin/sysctl -p
+
+      # 输出
+      oracle   soft   nofile    1024
+      oracle   hard   nofile    65536
+      oracle   soft   nproc    16384
+      oracle   hard   nproc    16384
+      oracle   soft   stack    10240
+      oracle   hard   stack    32768
+      oracle   hard   memlock    134217728
+      oracle   soft   memlock    134217728
+    #+end_src
+
+    /安装依赖 将下面命令写入到 =install.sh= 文件中：/
+    #+begin_src shell
+      dnf install -y bc    
+      dnf install -y binutils
+      #dnf install -y compat-libcap1
+      dnf install -y compat-libstdc++-33
+      #dnf install -y dtrace-modules
+      #dnf install -y dtrace-modules-headers
+      #dnf install -y dtrace-modules-provider-headers
+      #dnf install -y dtrace-utils
+      dnf install -y elfutils-libelf
+      dnf install -y elfutils-libelf-devel
+      dnf install -y fontconfig-devel
+      dnf install -y glibc
+      dnf install -y glibc-devel
+      dnf install -y ksh
+      dnf install -y libaio
+      dnf install -y libaio-devel
+      #dnf install -y libdtrace-ctf-devel
+      dnf install -y libXrender
+      dnf install -y libXrender-devel
+      dnf install -y libX11
+      dnf install -y libXau
+      dnf install -y libXi
+      dnf install -y libXtst
+      dnf install -y libgcc
+      dnf install -y librdmacm-devel
+      dnf install -y libstdc++
+      dnf install -y libstdc++-devel
+      dnf install -y libxcb
+      dnf install -y make
+      dnf install -y net-tools # Clusterware
+      dnf install -y nfs-utils # ACFS
+      dnf install -y python # ACFS
+      dnf install -y python-configshell # ACFS
+      dnf install -y python-rtslib # ACFS
+      dnf install -y python-six # ACFS
+      dnf install -y targetcli # ACFS
+      dnf install -y smartmontools
+      dnf install -y sysstat
+
+      # Added by me.
+      dnf install -y unixODBC
+
+      # New for OL8
+      dnf install -y libnsl
+      dnf install -y libnsl.i686
+      dnf install -y libnsl2
+      dnf install -y libnsl2.i686
+    #+end_src
+
+    /赋予可执行权限:/
+    #+begin_src shell
+      chmod +x install.sh
+    #+end_src
+
+    /运行/
+    #+begin_src shell
+      ./install.sh
+    #+end_src
+
+    等待安装完成即可。
+
+
+    /创建用户和用户组:/
+    #+begin_src shell
+      groupadd -g 54321 oinstall
+      groupadd -g 54322 dba
+      groupadd -g 54323 oper 
+      #groupadd -g 54324 backupdba
+      #groupadd -g 54325 dgdba
+      #groupadd -g 54326 kmdba
+      #groupadd -g 54327 asmdba
+      #groupadd -g 54328 asmoper
+      #groupadd -g 54329 asmadmin
+      #groupadd -g 54330 racdba
+
+      useradd -u 54321 -g oinstall -G dba,oper oracle
+
+
+      passwd oracle # 设置密码
+    #+end_src
+
+** 其他设置
+    关闭SELINUX
+    /编辑 =/etc/selinux/config= 配置文件: /
+    #+begin_src shell
+      SELINUX=permissive
+    #+end_src
+
+    /更新：/
+    #+begin_src shell
+      setenforce Permissive
+    #+end_src
+
+    /关闭防火墙:/
+    #+begin_src shell
+      systemctl stop firewalld # 停止防火墙
+      systemctl disable firewalld # 禁止开机启动
+    #+end_src
+
+    /创建oracle数据库安装目录:/
+    #+begin_src shell
+      mkdir -p /u01/app/oracle/product/19.0.0/dbhome_1 # 安装目录
+      mkdir -p /u02/oradata # 数据存储目录
+      chown -R oracle:oinstall /u01 /u02 # 赋予oracle用户
+      chmod -R 775 /u01 /u02 # 目录权限设置
+    #+end_src
+
+
+    /创建脚本目录：/
+    #+begin_src shell 
+      mkdir /home/oracle/scripts
+    #+end_src
+
+    /创建环境变量脚本 =setEnv.sh= :/
+    #+begin_src shell
+      cat > /home/oracle/scripts/setEnv.sh <<EOF
+      # Oracle Settings
+      export TMP=/tmp
+      export TMPDIR=\$TMP
+
+      export ORACLE_HOSTNAME=MiWiFi-R4A-srv.localdomain  # 注意这里需要替换为自己的主机名
+      export ORACLE_UNQNAME=cdb1
+      export ORACLE_BASE=/u01/app/oracle         
+      export ORACLE_HOME=\$ORACLE_BASE/product/19.0.0/dbhome_1 # 软件安装目录
+      export ORA_INVENTORY=/u01/app/oraInventory
+      export ORACLE_SID=cdb1
+      export PDB_NAME=pdb1 # PDB 名字
+      export DATA_DIR=/u02/oradata # 数据存储目录
+
+      # 这个地方将 echo $PATH 命令输出的内容替换/usr/sbin:/usr/local/bin
+      # 如果不替换，可能会导致很多命令不能用
+      export PATH=/usr/sbin:/usr/local/bin:\$PATH 
+      export PATH=\$ORACLE_HOME/bin:\$PATH
+
+      export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
+      export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
+      EOF
+    #+end_src
+
+    
+    /添加环境变量:/
+    #+begin_src shell
+      echo ". /home/oracle/scripts/setEnv.sh" >> /home/oracle/.bash_profile
+    #+end_src
+
+    /添加两个脚本，start_all.sh用来启动oracle, stop用来停止oracle：/
+    #+begin_src shell
+      cat > /home/oracle/scripts/start_all.sh <<EOF
+      #!/bin/bash
+      . /home/oracle/scripts/setEnv.sh
+
+      export ORAENV_ASK=NO
+      . oraenv
+      export ORAENV_ASK=YES
+
+      dbstart \$ORACLE_HOME
+      EOF
+
+
+      cat > /home/oracle/scripts/stop_all.sh <<EOF
+      #!/bin/bash
+      . /home/oracle/scripts/setEnv.sh
+
+      export ORAENV_ASK=NO
+      . oraenv
+      export ORAENV_ASK=YES
+
+      dbshut \$ORACLE_HOME
+      EOF
+      # 添加相应的权限
+      chown -R oracle:oinstall /home/oracle/scripts
+      chmod u+x /home/oracle/scripts/*.sh
+    #+end_src
+
+    现在不需要运行这两个脚本
+
+** 安装
+   完成上面的依赖和相关配置之后，就可以安装了。
+
+   下载[[https://www.oracle.com/database/technologies/oracle-database-software-downloads.html][LINUX.X64_193000_db_home.zip]]安装包, 下载的时候需要登录帐号，没有帐号的需要注册。
+
+   #+begin_src shell
+     # 解压软件
+     su oracle # 切换到oracle用户
+     source ~/.bash_profile # 刷新环境变量 
+     cd $ORACLE_HOME # 切换到oracle安装目录
+     unzip -oq /path/to/software/LINUX.X64_193000_db_home.zip # 解压，根据自己下载目录即可
+
+     # 这两条命令根据自己的需求来运行
+     # Centos8模拟Centos7
+     export CV_ASSUME_DISTID=RHEL7.6
+     # Oracle linux8 模拟 Oracle linux7
+     export CV_ASSUME_DISTID=OEL7.6
+
+     # 这是启动图形安装
+     ./runInstaller
+
+     # 静态安装，不需要图形界面，安装之前确保这些环境变量都能使用
+     ./runInstaller -ignorePrereq -waitforcompletion -silent                        \
+	 -responseFile ${ORACLE_HOME}/install/response/db_install.rsp               \
+	 oracle.install.option=INSTALL_DB_SWONLY                                    \
+	 ORACLE_HOSTNAME=${ORACLE_HOSTNAME}                                         \
+	 UNIX_GROUP_NAME=oinstall                                                   \
+	 INVENTORY_LOCATION=${ORA_INVENTORY}                                        \
+	 SELECTED_LANGUAGES=en,en_GB                                                \
+	 ORACLE_HOME=${ORACLE_HOME}                                                 \
+	 ORACLE_BASE=${ORACLE_BASE}                                                 \
+	 oracle.install.db.InstallEdition=EE                                        \
+	 oracle.install.db.OSDBA_GROUP=dba                                          \
+	 oracle.install.db.OSBACKUPDBA_GROUP=dba                                    \
+	 oracle.install.db.OSDGDBA_GROUP=dba                                        \
+	 oracle.install.db.OSKMDBA_GROUP=dba                                        \
+	 oracle.install.db.OSRACDBA_GROUP=dba                                       \
+	 SECURITY_UPDATES_VIA_MYORACLESUPPORT=false                                 \
+   #+end_src
+
+
+       
+** 创建数据库
+   #+begin_src shell
+     # Start the listener. 开启监听
+     lsnrctl start
+
+     # Interactive mode. 图形安装
+     dbca
+
+     # Silent mode. 静态安装
+     dbca -silent -createDatabase                                                   \
+	  -templateName General_Purpose.dbc                                         \
+	  -gdbname ${ORACLE_SID} -sid  ${ORACLE_SID} -responseFile NO_VALUE         \  # 设置gdb和sid
+	  -characterSet AL32UTF8                                                    \  # 设置编码
+	  -sysPassword SysPassword1                                                 \  # 设置sys用户密码
+	  -systemPassword SysPassword1                                              \  # 设置system用户密码
+	  -createAsContainerDatabase true                                           \  
+	  -numberOfPDBs 1                                                           \
+	  -pdbName ${PDB_NAME}                                                      \  # 设置pdb
+	  -pdbAdminPassword PdbPassword1                                            \  # 设置pdb密码
+	  -databaseType MULTIPURPOSE                                                \
+	  -memoryMgmtType auto_sga                                                  \
+	  -totalMemory 2000                                                         \  # 设置内存，根据自己需求来，如果设置的内存高于系统的内存，会创建失败
+	  -storageType FS                                                           \  # 设置存储类型
+	  -datafileDestination "${DATA_DIR}"                                        \  # 设置存储位置
+	  -redoLogFileSize 50                                                       \  # 设置日子文件大小
+	  -emConfiguration NONE                                                     \
+	  -ignorePreReqs
+   #+end_src
+
+   这里需要注意的是内存大小的设置，我的在服务器中每次都会安装失败，原因就是2000M的内存设置太大了。
+
+** 安装后
+
+   /编辑 =/etc/oratab= 文件将N改为Y/
+   #+begin_src shell
+     cdb1:/u01/app/oracle/product/19.0.0/dbhome_1:Y
+   #+end_src
+
+   到这里基本安装就结束了，这些内容都是官方教程里面有的，有几个坑说一下：
+
+   1. 在环境变量设置的时候，如果按照官方的来，会导致很多命令失效
+   #+begin_src shell
+     # 官方的
+     export PATH=/usr/sbin:/usr/local/bin:\$PATH
+
+     # 先查看原本的$PATH,这条命令必须在安装的系统中运行
+     echo $PATH 
+     export PATH={}:$PATH  # 将echo $PATH命令输出的内容替换{}
+
+     # 例如：
+     export PATH=/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin:$PATH
+   #+end_src
+
+   2. 需要手动刷新环境变量
+      将 =. /home/oracle/scripts/setEnv.sh= 添加在 /home/oracle/.bash_profile 文件中之后，需要运行下面命令：
+      #+begin_src shell
+	su oracle # 切换到oracle用户中
+
+	source ~/.bash_profile 
+      #+end_src
+
+      最好使用 =echo= 检查这些环境变量是否添加成功：
+      #+begin_src shell
+	[oracle@MiWiFi-R4A-srv admin]$ echo $ORACLE_HOME
+	/u01/app/oracle/product/19.0.0/dbhome_1
+      #+end_src
+
+   3. 内存设置
+      一般情况下服务器的内存都不会很高，官方设置的是2000M,2000M就意味着我们的系统内存至少要在2000M以上，不然很容易安装不成功。
+
+      我们可以根据自己的系统来设置，比如系统内存有1000M,我们就可以将内存设置为800M左右，或者更小。
+
+
+* 启动和停止数据库
+  现在我们就可以运行之前设置的两个脚本了
+
+  /在oracle用户下运行下面脚本即可：/
+  #+begin_src shell 
+    ~/scripts/start_all.sh
+    ~/scripts/stop_all.sh
+  #+end_src
+
+** 启动
+   #+begin_src shell
+     [oracle@oracle scripts]$ ./start_all.sh 
+     ORACLE_HOME = [/home/oracle] ? /u01/app/oracle/product/19.0.0/dbhome_1 # 设置ORACLE_HOME
+     The Oracle base remains unchanged with value /u01/app/oracle
+     Processing Database instance "sid1": log file /u01/app/oracle/product/19.0.0/dbhome_1/rdbms/log/startup.log
+   #+end_src
+
+   查看日志
+   #+begin_src shell
+     [oracle@oracle scripts]$ cat /u01/app/oracle/product/19.0.0/dbhome_1/rdbms/log/startup.log
+
+     /u01/app/oracle/product/19.0.0/dbhome_1/bin/dbstart: Starting up database "sid1"
+     Sun Nov 21 11:28:30 GMT 2021
+
+     opc: Warning: Database instance "sid1" already started.
+     opc: Warning: Database instance "sid1" possibly left running when system went down (system crash?).
+     opc: Action: Notify Database Administrator.
+
+     SQL*Plus: Release 19.0.0.0.0 - Production on Sun Nov 21 11:28:31 2021
+     Version 19.3.0.0.0
+
+     Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+     SQL> Connected.
+     SQL> ORACLE instance shut down.
+     SQL> Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+     Version 19.3.0.0.0
+
+     SQL*Plus: Release 19.0.0.0.0 - Production on Sun Nov 21 11:28:36 2021
+     Version 19.3.0.0.0
+
+     Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+     SQL> Connected to an idle instance.
+     SQL> ORACLE instance started.
+
+     Total System Global Area  402650336 bytes
+     Fixed Size                  9135328 bytes
+     Variable Size             314572800 bytes
+     Database Buffers           71303168 bytes
+     Redo Buffers                7639040 bytes
+     Database mounted.
+     Database opened.
+     SQL> Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+     Version 19.3.0.0.0
+
+     /u01/app/oracle/product/19.0.0/dbhome_1/bin/dbstart: Database instance "sid1" warm started.
+
+   #+end_src
+
+   如果出现内存不够导致的错误，参考这篇[[https://blog.csdn.net/dayuuu/article/details/105957474][博客]]
+   #+begin_src shell
+     create pfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora' from spfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/spfilesid1.ora';
+   #+end_src
+   这篇博客会出错的地方。
+
+
+
+** 停止
+   #+begin_src shell
+     [oracle@oracle ~]$ ./scripts/stop_all.sh 
+     ORACLE_HOME = [/home/oracle] ? /u01/app/oracle/product/19.0.0/dbhome_1 # 输入ORACLE_HOME
+     The Oracle base remains unchanged with value /u01/app/oracle
+     Processing Database instance "sid1": log file /u01/app/oracle/product/19.0.0/dbhome_1/rdbms/log/shutdown.log
+   #+end_src
+
+   如果停止失败查看日志
+
+   
+* 修改sys,system用户密码，创建CDB用户和PDB用户
+** sys用户登录
+   /使用sys用户登录：/
+   #+begin_src shell
+     [oracle@oracle ~]$ sqlplus  / as sysdba 
+
+     SQL*Plus: Release 19.0.0.0.0 - Production on Sun Nov 21 12:08:11 2021
+     Version 19.3.0.0.0
+
+     Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+     Connected to an idle instance.
+
+     SQL> 
+   #+end_src
+
+   /启动数据库：/
+   #+begin_src shell
+     SQL> startup;
+     ORA-01078: failure in processing system parameters
+     LRM-00109: could not open parameter file '/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora'
+   #+end_src
+
+   启动失败，哈哈哈，不要急
+
+   先看报错报错日志，说没有 =/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora= 文件，那我们就想办法创建这个文件。
+   经过一番搜索，运行下面的命令：
+   #+begin_src shell
+     SQL> create pfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora' from spfile;
+     create pfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora' from spfile
+     ,*
+     ERROR at line 1:
+     ORA-01565: error in identifying file '?=/dbs/spfile@.ora'
+     ORA-27037: unable to obtain file status
+     Linux-x86_64 Error: 2: No such file or directory
+     Additional information: 7
+   #+end_src
+
+   还是报错， =spfile= 默认指定的文件是 ='?=/dbs/spfile@.ora'= ，但是没有这个文件，我们需要手动指定这个文件 =$ORACLE_HOME/dbs/spfilesid1.ora=
+   #+begin_src shell
+     SQL> create pfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/initcdb1.ora' from spfile='/u01/app/oracle/product/19.0.0/dbhome_1/dbs/spfilesid1.ora';
+
+     File created.
+   #+end_src
+
+   创建成功，我们再来启动一下
+   #+begin_src shell
+     SQL> startup;
+     ORACLE instance started.
+
+     Total System Global Area  402650336 bytes
+     Fixed Size                  9135328 bytes
+     Variable Size             180355072 bytes
+     Database Buffers          205520896 bytes
+     Redo Buffers                7639040 bytes
+     ORA-01102: cannot mount database in EXCLUSIVE mode # 提示无法以独占模式装载数据库
+
+
+     SQL> shutdown; # 关机
+     ORA-01507: database not mounted
+
+
+     ORACLE instance shut down.
+   #+end_src
+   关于这个错误查看这篇[[https://blog.csdn.net/ZHUIMENGZHONG/article/details/46049577][博客]]
+
+   /重新启动之后：/
+   #+begin_src shell
+     SQL>  startup mount
+     ORACLE instance started.
+
+     Total System Global Area  402650336 bytes
+     Fixed Size                  9135328 bytes
+     Variable Size             176160768 bytes
+     Database Buffers          209715200 bytes
+     Redo Buffers                7639040 bytes
+     Database mounted.
+
+     SQL> alter database open; # 打开数据库，要打开成功才能继续下面，不然所有命令都会报错
+
+     Database altered.
+   #+end_src
+
+   
+   
+   /修改sys,system用户密码:/
+   #+begin_src shell
+     SQL> alter user sys identified by manager;
+     SQL> alter user system identified by manager;
+   #+end_src
+
+   创建用户看这篇[[https://blog.csdn.net/ly_6118/article/details/109162165?ops_request_misc=%257B%2522request%255Fid%2522%253A%2522163747516016780269890415%2522%252C%2522scm%2522%253A%252220140713.130102334..%2522%257D&request_id=163747516016780269890415&biz_id=0&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduend~default-1-109162165.first_rank_v2_pc_rank_v29&utm_term=oracle19c%E6%96%B0%E5%BB%BA%E7%94%A8%E6%88%B7&spm=1018.2226.3001.4187][博客]]
+** 创建CDB用户
+   /创建CDB用户：/
+   #+begin_src shell
+     # 查看CDB环境
+     SQL> select name,cdb from v$database;
+
+     NAME      CDB
+     --------- ---
+     GDB1      YES
+     # 创建用户
+     SQL> create user C##kunpeng identified by wuguipeng;
+
+     User created.
+     # 赋予权限
+     SQL> grant dba,connect,resource,create view to C##kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant create session to C##kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant select any table to C##kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant update any table to C##kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant insert any table to C##kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant delete any table to C##kunpeng;
+
+     Grant succeeded.
+     # 删除用户
+     SQL> drop user C##kunepng ;
+
+     User dropped.
+   #+end_src
+
+   /使用CDB用户登录数据库:/
+   #+begin_src shell
+     [oracle@oracle dbs]$ sqlplus C##kunpeng/wuguipeng;
+
+     SQL*Plus: Release 19.0.0.0.0 - Production on Sun Nov 21 13:32:07 2021
+     Version 19.3.0.0.0
+
+     Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+
+     Connected to:
+     Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+     Version 19.3.0.0.0
+
+     SQL> 
+
+   #+end_src
+
+** 创建PDB用户
+   /创建：/
+   #+begin_src shell
+     # 查看PDB
+     SQL> select pdb_id,pdb_name,dbid,status,creation_scn from dba_pdbs;
+
+	 PDB_ID
+     ----------
+     PDB_NAME
+     --------------------------------------------------------------------------------
+	   DBID STATUS     CREATION_SCN
+     ---------- ---------- ------------
+	      3
+     PDB1
+     2190324519 NORMAL          2646144
+
+	      2
+     PDB$SEED
+     4164110143 NORMAL          2015220
+
+	 PDB_ID
+     ----------
+     PDB_NAME
+     --------------------------------------------------------------------------------
+	   DBID STATUS     CREATION_SCN
+     ---------- ---------- ------------
+
+     # 切换到PDB环境
+     SQL> alter session set container=pdb1;
+
+     Session altered.
+
+     # 创建PDB用户
+     SQL> create user kunpeng identified by wuguipeng;
+
+     User created.
+     # 赋予权限
+     SQL> grant dba,connect,resource,create view to kunpeng; 
+
+     Grant succeeded.
+
+     SQL> grant select any table to kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant update any table to kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant insert any table to kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant delete any table to kunpeng;
+
+     Grant succeeded.
+
+     SQL> grant create session to kunpeng;
+
+     Grant succeeded.
+
+   #+end_src
+
+
+   
+
+** 配置TNS远程的登录
+   参考[[https://blog.csdn.net/weixin_43885834/article/details/104435592][博客]]
+   

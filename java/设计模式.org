@@ -1,0 +1,262 @@
+#+TITLE: java 设计模式
+#+AUTHOR: kunpeng
+
+* 23种设计模式
+** 代理模式
+*** 定义
+代理模式是使用一种代理对象来执行目标对象的方法并在代理对象种增强目标对象的一种模式。
+*** 静态代理
+静态代理是由程序员编写代理类的源代码，再编译代理类。
+所谓静态代理也就是再程序运行钱就已经存在代理类的字节码文件，在理类和委托类的关系再运行前就已经确定。
+***** 示例：demo1
+这个示例模拟出租房屋，有真实的房东类，真实的租房类和中介类，抽象出租类
+****** Rent 类
+#+begin_src java
+  //出租抽象类
+  public interface Rent {
+      public void retn();
+  }
+#+end_src
+****** Host 类
+#+begin_src java
+
+  public class Host implements Rent{ // 房东出租真实类，继承出租抽象类
+      @Override
+      public void retn() {
+          System.out.println("出租");
+      }
+  }
+#+end_src
+****** Proxy 代理类
+#+begin_src java
+  //该类继承Rent抽象类，组合Host类，这个类就是中介，
+  //代理房东出租房屋，房东不需要知道客户是谁，只需要委托给中介就行 
+  public class Proxy implements Retn{
+      private Host host;
+
+      public Proxy(Host host) {
+          this.host = host;
+      }
+
+      @Override
+      public void retn() {
+          host.retn();
+      }
+  }
+
+#+end_src
+****** Client 类
+#+begin_src java
+  // 租房类，这个类需要租房，只需要知道房东是谁，一切手续都交给Prox代理类
+  public class Client {
+      public static void main(String[] args) {
+          Host host = new Host();
+          Proxy proxy = new Proxy(host);
+          proxy.retn();
+      }
+  }
+#+end_src
+***** 示例：demo2
+这个示例模拟真实业务种的增删改查业务，再原有的业务基础上，不该改动原有的代码实现日志功能。
+****** UserService 抽象类
+#+begin_src java
+  //抽象类，模拟真实业务
+  public interface UserService {
+      public void add();
+      public void delete();
+      public void insert();
+      public void query();
+  }
+
+#+end_src
+****** UserServiceImpl 实现类
+#+begin_src java
+  //UserSerivce抽象接口的实现类
+  public class UserServiceImpl implements UserService{
+      @Override
+      public void add() {
+          System.out.println("添加一个用户");
+      }
+
+      @Override
+      public void delete() {
+          System.out.println("删除一个用户");
+      }
+
+      @Override
+      public void insert() {
+          System.out.println("插入一个用户");
+      }
+
+      @Override
+      public void query() {
+          System.out.println("查询一个用户");
+      }
+  }
+#+end_src
+****** ProxyUserServiceImple 代理类
+#+begin_src java
+  //代理UserServiceImpl类实现日志功能，再增加日志功能后，原有的业务代码不需要改变
+  public class ProxyUserServiceImpl implements UserService{
+      private UserServiceImpl userServiceImpl;
+
+      public void setUserServiceImpl(UserServiceImpl userServiceImpl) {
+          this.userServiceImpl = userServiceImpl;
+      }
+
+      @Override
+      public void add() {
+          log("add");
+          userServiceImpl.add();
+      }
+
+      @Override
+      public void delete() {
+          log("delete");
+          userServiceImpl.delete();
+      }
+
+      @Override
+      public void insert() {
+          log("insert");
+          userServiceImpl.insert();
+      }
+
+      @Override
+      public void query() {
+          log("query");
+          userServiceImpl.query();
+      }
+
+      public void log(String msg){
+          System.out.println("[debug] 使用了" + msg + "方法");
+      }
+  }
+
+#+end_src
+****** Client 客户端类
+#+begin_src java
+  // 测试类
+  public class Client {
+      public static void main(String[] args) {
+          UserServiceImpl userService = new UserServiceImpl();
+          ProxyUserServiceImpl proxyUserService = new ProxyUserServiceImpl();
+          proxyUserService.setUserServiceImpl(userService);
+          proxyUserService.add();
+
+      }
+  }
+#+end_src
+***** 
+*** 动态代理
++ 动态代理和静态代理角色一样
++ 动态代理的代理类是动态生产的，不是我们直接写好的
++ 动态代理分为两大类：基于接口的动态代理，基于类的动态代理
+  + 基于接口--JDK动态代理
+  + 基于类：cglib
+  + java字节码实现： javasist
+
+需要了解两个类： Proxy代理类，InvocationHandler调用处理程序
+***** 示例：demo3
+还是租房的例子
+****** Rent接口
+#+begin_src java
+  //出租抽象类
+  public interface Rent {
+      public void rent();
+  }
+
+#+end_src
+****** Host类
+#+begin_src java
+  public class Host implements Rent {
+      @Override
+      public void rent() {
+          System.out.println("出租房屋！");
+      }
+  }
+#+end_src
+****** ProxyInvocationHandler 类
+#+begin_src java
+  // 继承InvocationHandler接口实现invoke方法
+  public class ProxyInvocationHandler implements InvocationHandler {
+      private Rent rent;
+
+      public void setRent(Rent rent) {
+          this.rent = rent;
+      }
+
+      // 获得动态生成的代理类
+      public Object getProxy(){
+          return Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                                        rent.getClass().getInterfaces(),this);
+      }
+
+      // 处理代理实例，并放回结果
+      @Override
+      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+          // 代理的本质就是放射机制！
+          return method.invoke(rent, args);
+      }
+  }
+#+end_src
+****** Client类
+#+begin_src java
+  public class Client {
+      public static void main(String[] args) {
+          Host host = new Host();  //真实类
+          ProxyInvocationHandler proxyInvocationHandler = new ProxyInvocationHandler();
+          proxyInvocationHandler.setRent(host);
+          Rent proxy = (Rent) proxyInvocationHandler.getProxy(); // 动态生成代理类
+          proxy.rent();
+
+      }
+  }
+#+end_src
+***** 示例：demo4
+模拟真实业务
+UserService接口和UserServiceImpl 和静态代理中的一样
+****** ProxyInocationHandler 类
+#+begin_src java
+  //这是一个通用的动态代理类，主要有三部分，被代理的对象，获得代理类，调用处理程序并返回结果
+  // 继承InvocationHandler接口实现invoke方法
+  public class ProxyInvocationHandler implements InvocationHandler {
+      private Object target;
+
+      public void setRent(Object target) {
+          this.target = target;
+      }
+
+      // 获得动态生成的代理类
+      public Object getProxy(){
+          return Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                                        target.getClass().getInterfaces(),this);
+      }
+
+      // 处理代理实例，并放回结果
+      @Override
+      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+          // 代理的本质就是放射机制！
+          log(method.getName());
+          return method.invoke(target, args);
+      }
+
+      public void log(String msg){
+          System.out.println("调用了"+msg+"方法");
+      }
+  }
+#+end_src
+****** Client类
+#+begin_src java
+  public class Client {
+      public static void main(String[] args) {
+          UserServiceImpl userService = new UserServiceImpl();
+
+          ProxyInvocationHandler proxyInvocationHandler = new ProxyInvocationHandler();
+          proxyInvocationHandler.setRent(userService);
+          UserService proxy = (UserService) proxyInvocationHandler.getProxy(); // 动态生成代理类
+          proxy.add();
+
+      }
+  }
+#+end_src

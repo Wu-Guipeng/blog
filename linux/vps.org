@@ -1,0 +1,69 @@
+#+TITLE: vps防火墙设置，ubuntu20.04, centos8
+
+
+* 开放端口
+** ubuntu20.04 甲骨文vps
+   在甲骨文vps中，ubuntu20.04使用的防火墙管理工具是 =iptables=
+
+*** 开放指定端口
+    建议使用开放指定端口，在需要的时候开放端口即可
+    #+begin_src shell
+      sudo iptables -I INPUT -s 0.0.0.0/0 -p tcp --dport 8888 -j ACCEPT #添加规则 
+      sudo iptables -I INPUT -s 0.0.0.0/0 -p tcp --dport 80 -j ACCEPT
+      sudo iptables -I INPUT -s 0.0.0.0/0 -p tcp --dport 443 -j ACCEPT 
+      sudo iptables-save # 保存规则
+      sudo apt-get update
+      sudo apt-get install iptables-persistent -y # 安装iptables-persistent工具
+      sudo netfilter-persistent save # 保存规则
+      sudo netfilter-persistent reload # 加载保存的规则
+    #+end_src
+
+*** 开放所有端口
+    这种方式一般是直接把防火墙干掉，不建议使用
+    #+begin_src shell
+      sudo iptables -P INPUT ACCEPT  # 开放所有进站端口
+      sudo iptables -P FORWARD ACCEPT
+      sudo iptables -P OUTPUT ACCEPT # 开放所有出站端口
+      sudo iptables -F
+      sudo apt-get purge netfilter-persistent
+      reboot # 重启系统
+    #+end_src
+
+** centos8
+   centos8使用的防火墙管理工具是 =firewall=
+*** 开放指定端口
+    建议使用这种方式,打开端口只需要这三条命令即可，防火墙的规则还是很复杂的，想学的话看这位大佬的[[https://www.myfreax.com/how-to-configure-and-manage-firewall-on-centos-8/][博客]]
+    #+begin_src shell
+      sudo firewall-cmd --zone=public --add-port=8080/tcp # 打开端口
+      sudo firewall-cmd --zone=public --list-ports # 验证端口是否打开
+      sudo firewall-cmd --runtime-to-permanent # 保证重启系统后保持打开状态
+
+    #+end_src
+
+*** 开放所有端口
+    不建议使用这种方式
+    #+begin_src shell
+      firewall-cmd --state                   # 查看防火墙状态
+      systemctl stop firewalld.service       # 停止防火墙
+      systemctl disable firewalld.service    # 禁止防火墙开机自启
+    #+end_src
+    
+
+* 获取https证书
+  注意下面步骤需要使用root用户，不能使用sudo
+  #+begin_src shell
+    curl https://get.acme.sh | sh -s email=my@example.com # 下载脚本
+    alias acme.sh=~/.acme.sh/acme.sh # 在.bashrc 中添加一个别名
+    acme.sh  --issue -d www.example.com   --standalone  # 80 端口是空闲的, 那么 acme.sh 还能假装自己是一个webserver, 临时听在80 端口, 完成验证:
+  #+end_src
+
+
+* docker
+** mysql
+   #+begin_src shell
+     docker run -d --name mysql-1 -p 3306:3306 \
+     -v /home/ubuntu/mysql/data:/var/lib/mysql \
+     -v /home/ubuntu/mysql/conf:/etc/mysql/conf.d \
+     -e MYSQL_ROOT_PASSWORD=wuguipeng \
+     mysql:latest
+   #+end_src

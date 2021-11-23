@@ -1,0 +1,167 @@
+#+TITLE: 甲骨文ATP数据库
+#+kunpeng
+
+* 说明
+  本次使用的是甲骨文永久免费的ATP自治数据库和对象存储，需要注册账号，一共有20GB的存储空间。
+
+* 在SpringBoot中使用Orcale数据库
+  1. 创建一个ATP数据库实例，设置账号和密码，其他默认即可（免费）。
+  
+  2. 甲骨文提供了自己的数据库可视化工具 *sqL Developer* ,[[https://www.oracle.com/tools/downloads/sqldev-downloads.html][Download]]下载即可。
+
+  3. 甲骨文提供的连接方式为 =Wallet= ，需要下载Wallet文件到本地并进行解压，记住解压路径。
+
+  4. 创建一个SpringBoot应用程序，添加以下依赖
+     #+begin_src xml
+       <dependency>
+	 <groupId>org.springframework.boot</groupId>
+	 <artifactId>spring-boot-starter-web</artifactId>
+       </dependency>
+       <dependency>
+	 <groupId>org.springframework.boot</groupId>
+	 <artifactId>spring-boot-starter-test</artifactId>
+	 <scope>test</scope>
+       </dependency>
+       <dependency>
+	 <groupId>javax.ws.rs</groupId>
+	 <artifactId>javax.ws.rs-api</artifactId>
+	 <version>2.0.1</version>
+       </dependency>
+       <dependency>
+	 <groupId>org.springframework.boot</groupId>
+	 <artifactId>spring-boot-starter-jdbc</artifactId>
+       </dependency>
+       <dependency>
+	 <groupId>com.oracle.ojdbc</groupId>
+	 <artifactId>ojdbc8</artifactId>
+	 <version>19.3.0.0</version>
+       </dependency>
+     #+end_src
+
+  5. 在application.properties配置文件中添加以下配置
+     #+begin_src text
+       # For connecting to Autonomous Database (ATP) refer https://www.oracle.com/database/technologies/getting-started-using-jdbc.html
+       # Provide the database URL, database username and database password
+       spring.datasource.url=jdbc:oracle:thin:@db202111031441_high?TNS_ADMIN=E:/org/network/admin
+       spring.datasource.username=ADMIN
+       spring.datasource.password=1dVBK406MFkb
+
+       # Properties for using Universal Connection Pool (UCP)
+       # Note: These properties require JDBC version 21.0.0.0
+       spring.datasource.driver-class-name=oracle.jdbc.driver.OracleDriver
+     #+end_src
+
+     /注意：/
+     spring.datasource.url, orcale数据库有好几种url的写法，这里使用的是 =Wallet= 进行连接，所以会区别与传统的连接方式。需要注意的是 =TNS_ADMIN= 这个路径是Wallet解压的路径（不要使用中文路径）， =@db202111031441_high= 这一个也需要改，找到解压路径下的 =tnsnames.ora= 文件，orcale提供了5中配置，都在这个文件中，填写其中一个即可。
+
+     接下来配置用户名和密码，数据驱动即可。
+
+* 根据三大范式从新设计数据库
+  #+begin_src text
+    +----------------------+--------------+------+-----+---------+-------+
+    | Field                | Type         | Null | Key | Default | Extra |
+    +----------------------+--------------+------+-----+---------+-------+
+    | BookId               | varchar(50)  | NO   | PRI | <null>  |       |
+    | BookName             | varchar(100) | NO   |     | <null>  |       |
+    | BookScanDate         | date         | NO   |     | <null>  |       |
+    | PreLabeledPerson     | varchar(10)  | YES  |     | <null>  |       |
+    | LabelCompany         | varchar(10)  | YES  |     | <null>  |       |
+    | SendLabelCompanyDate | date         | YES  |     | <null>  |       |
+    | CompleteLabelDate    | date         | NO   |     | <null>  |       |
+    | BookPriority         | varchar(20)  | YES  |     | <null>  |       |
+    | BookStatus           | int          | NO   |     | <null>  |       |
+    | Remark               | varchar(50)  | YES  |     | <null>  |       |
+    | version              | varchar(10)  | YES  |     | <null>  |       |
+    +----------------------+--------------+------+-----+---------+-------+
+  #+end_src
+  这是之前使用的表，练习册的所有信息都在一张表上 ，不符合三大范式，有大量的冗余数据，现在使用orcale数据库从新设计。
+
+  首先是BookName字段，练习册的名称 =语文-人教(部编)-三年级上册-拓展阅读限时阅读测试(2022)= 为这种新式，更具第一范式，保证数据的原子性，不可分割。但是练习册名称明显还可以继续拆分，拆分为 =语文 人教(部编) 三年级上册 拓展阅读限时阅读测试(2022)= ,并重新设计一张表，但是在设计的过程中，我发现还能在细分，科目，版本，年级都是可以再细分的。
+  
+  BookName 练习册名称表
+  | 字段    | 类型    | 主键 | 非空 | 描述         |
+  |---------+---------+------+------+--------------|
+  | bookid  | int     | 是   | 是   | 练习册唯一id |
+  | subject | varchar |      | 是   | 科目         |
+  | version | varchar |      | 是   | 版本         |
+  | grade   | varchar |      | 是   | 年级         |
+  | book    | varchar |      | 是   | 练习册名称   |
+  |---------+---------+------+------+--------------|
+
+  book主表
+  | 字段         | 类型    | 主键 | 非空 | 描述         |
+  |--------------+---------+------+------+--------------|
+  | bookid       | varchar | 是   | 是   | 练习册唯一id |
+  | bookpriority | varchar |      | 否   | 练习册优先级 |
+  | scandate     | date    |      | 是   | 扫描对接日期 |
+  | startdate    | date    |      | 是   | 分配标注日期 |
+  | enddate      | date    |      | 是   | 完成标注日期 |
+ | bookstatus   | int     |      | 是   | 练习册状态   |
+  | bookremark   | varchar |      |      | 备注         |
+  | person       | varchar |      | 是   | 处理人       |
+  |--------------+---------+------+------+--------------|
+
+  user表
+  | 字段     | 类型    | 主键 | 非空 | 描述       |
+  | id       | int     | 是   | 是   | 账号唯一id |
+  |----------+---------+------+------+------------|
+  | username | varchar |      | 是   | 用户名     |
+  | password | varchar |      | 是   | 密码       |
+  |----------+---------+------+------+------------|
+
+* 使用sqlcli连接oracle数据库
+  sqlcli是一个命令行客户端，[[https://www.oracle.com/tools/downloads/sqlcl-downloads.html][Download]]下载即可
+
+  解压之后，在bin目录下有两个可执行文件，sql为linux下运行的，sql.exe是windows下面运行的。
+
+  
+** 在linux下使用
+
+   #+begin_src shell 
+     sudo ln -s sql /bin/sql # 创建软链接 前面的sql为解压出来bin目录下的sql
+     sql -h # 查看帮助命令
+     sql /nolog # 进入sql但是不连接服务器
+     sql>   #进入sql
+
+
+     # 下面的是配置wallet连接
+     sql>set cloudconfig .zip  # .zip 为从Oracle下载下来的连接配置文件，不需要解压
+     sql>connect username@servername # username是用户名，servername是tnsnames.ora下的预配置
+     口令? (**********?)********** # 输入密码回车即可连接
+   #+end_src
+
+   每次连接都需要重复上述步骤有些麻烦，可以在.bashrc或者.zshrc配置文件中使用别名进行简化
+   #+begin_src shell
+     alias sql="sql -cloudconfig .zip username@servername"  # 根据自己的数据库进行配置即可，每次只需要输入sql再输入密码即可连接
+   #+end
+* 使用对象存储
+  1. 创建存储桶，默认即可，有20GB的免费存储空间
+  2. 将 /可见性/ 改为公共
+  3. 在甲骨文控制面板点击右上角的头像>租户:xxxx,在里面有 *对象存储名称空间* ，记录下这个值，后面会用到
+  4. 创建访问密钥，头像>用户设置>客户密钥>生成客户密钥，密钥名称随便填写即可，记录 *key值这个值只会显示一次* ，然后在到客户密钥中可以看到刚才生成的密钥，复制 *访问密钥* ，将密钥的key和访问密钥写入 =.passwd-s3fs= 文件中
+     #+begin_src shell
+       echo "访问密钥:key" > ~/.passwd-s3fs
+
+       # 赋予权限
+       chmod 600 ~/.passwd-s3fs
+     #+end_src
+  5. 创建挂载目录 mkdir ~/oracle
+  6. 查看地区
+     根据控制面板中的区域名称去 [[https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm][官网]]中查询，我这里的是韩国首尔，对应的区域为 =ap-seoul-1= ，同样记下这个值。
+  7.挂载语法
+  #+begin_src shell
+    s3fs [bucket] [destination directory] -o endpoint=[region] -o passwd_file=~/.passwd-s3fs -o url=https://[namespace].compat.objectstorage.[region].oraclecloud.com/ -onomultipart -o use_path_request_style 
+  #+end_src
+  + bucket 储存桶的名称，在第1步中创建存储桶的时候设置的
+  + destination directory 挂载路径 在第5步中创建的挂载目录
+  + region 地区 在第6步中记录的地区
+  + namespace 命名空间，在第3步中记录的命名空间
+
+  *将记录的这些值填充在语法中的对应位置即可* ，完整路径如下
+  #+begin_src shell
+    s3fs bucket-20211108-1504 /root/oracle -o endpoint=ap-seoul-1 -o url=https://cncov4fhvqrw.compat.objectstorage.ap-seoul-1.oraclecloud.com/ -o passwd_file=/root/.passwd-s3fs -onomultipart -o use_path_request_style
+  #+end_src
+
+  参考文档：
+  [[https://gitlab.oracle.k8scloud.site/oracle/oci-learning-library/blob/b84181007f7184b8cab66f55756f377bb2a0b000/oci-object-storage-tutorial/%E5%AF%B9%E8%B1%A1%E5%AD%98%E5%82%A8%E6%9C%8D%E5%8A%A1.md][oci-learning-library]]
+  [[https://www.bobobk.com/724.html][春江暮客]]

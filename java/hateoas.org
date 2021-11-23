@@ -1,0 +1,182 @@
+#+TITLE: Spring hateoas 使用
+#+AUTHOR: wuguipeng
+#+DATE: 2021-11-06
+
+* 简介
+  REST是一种架构风格，它并没有明确的标准，更像是一种风格。
+
+** 原则条件
+   REST指的是一组 *架构约束* 和 *原则* 。满足这些约束和原则的应用程序或设计就是 =RESTful= 。
+
+   Web 应用程序最重要的 REST 原则是，客户端和服务器之间的交互在请求之间是无状态的。从客户端到服务器的每个请求都必须包含理解请求所必需的信息。如果服务器在请求之间的任何时间点重启，客户端不会得到通知。
+
+   每个资源都使用 URI (Universal Resource Identifier) 得到一个唯一的地址。所有资源都共享统一的接口，以便在客户端和服务器之间传输状态。使用的是标准的 HTTP 方法。
+
+   在SpringMVC中，HTTP请求有以下几个处理注解。
+   | 注解            | HTTP方法                                   | 用途                                          |
+   |-----------------+--------------------------------------------+-----------------------------------------------|
+   | @GetMapping     | HTTP GET请求                               | 通常客户端向服务端获取数据                    |
+   | @PostMapping    | HTTP POST请求                              | 通常客户端像服务器提交数据                    |
+   | @PutMapping     | HTTP PUT请求                               | 通常用于更新服务端的数据（更新整个数据）      |
+   | @PatchMapping   | HTTP PATCH请求                             | 通常用于更新 服务端的数据（局部，就像打补丁） |
+   | @DeleteMapping  | HTTP DELETE请求                            | 通常用于删除服务端数据                        |
+   | @RequestMapping | 通用的请求方法，HTTP方法可以使用method声明 |                                               |
+   |-----------------+--------------------------------------------+-----------------------------------------------|
+
+   REST虽然指定了一些约束，但是这些约束和原则都比较广泛，我们需要更加具体的约束条件和原则知道我们编码,这就是HATEOAS
+
+* HATEOAS简介
+  REST的全称为 /REpresentational State Transfer/, 表示的是状态转移。而HATEOAS的全称为 /Hypertext As The Engine Of Application State/ ,表示的是超文本的应用程序状态。
+
+  在很久之前的程序中，传输的都是文本对象，所以叫超文本，而今的传输的对象不仅限于文本，还有视频，图像，音乐等等，所以HATEOAS也可以叫 *超媒体* 。
+
+  /超媒体作为应用状态引擎/ 是一种创建自描述API的方式。API所返回的资源中会包含相关资源的链接，客户端只需要了解最少的API URL信息就能导航整个API，从而降低应用程序的耦合性。
+
+  传输的JSON格式如下
+  #+begin_src json
+    {
+	    "_embedded": {
+		    "bookNameResourceList": [{
+			    "subject": "语文",
+			    "version": "人教(部编)",
+			    "grade": "五年级上册",
+			    "book": "名师面对面先学后练检测卷(2022)",
+			    "_links": {
+				    "self": {
+					    "href": "http://127.0.0.1:8080/bookName/a81c7466-96b4-4532-90a3-114d1c2d587a"
+				    }
+			    }
+		    }]
+	    },
+	    "_links": {
+		    "findOneBook": {
+			    "href": "http://127.0.0.1:8080/book/a81c7466-96b4-4532-90a3-114d1c2d587a"
+		    }
+	    }
+    }
+  #+end_src
+
+  这个例子中 =bookNameResourceList= 只有一条数据，这条数据中有个指向 =self= 的链接（这条数据中并没有BookId字段，这条超链接充当了ID的职责）
+
+  除了 =bookNameResourceList= 外，最后面还有一个链接，这条链接是指向整个 =bookNameResourceList= 的，而 =bookNameResourceList= 中有多条数据，每个数据中又有指向每条数据的超链接。
+
+  通过这种方式，客户端就以使用最好的API导航整个API。
+
+* 使用HATEOAS
+  创建一个SpringBoot项目，添加下面依赖
+  #+begin_src xml
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-hateoas</artifactId>
+    </dependency>
+  #+end_src
+
+** 添加超链接
+   在测试项目中代码过多，不会一一展示，只会展示关于HATEOAS相关的代码。参考《Spring实战》一书。
+
+   /为资源添加超链接：/
+   #+begin_src java
+     @GetMapping("/findAll")
+     public CollectionModel<EntityModel<BookName>> findAll(){
+	 List<BookName> bookNames = bookNameService.findAll();    //获取所有资源
+	 //EntityModel代表单个资源
+	 //CollectionModel代表一个资源的集合
+	 CollectionModel<EntityModel<BookName>> bookNameCollection =  CollectionModel.wrap(bookNames); //将整个资源添加到CollectionModel中
+	 bookNameCollection.add(new Link("http://127.0.0.1:8080/bookName/findAll","findAll")); //为整个资源添加一条超链接
+
+	 return bookNameCollection;
+     }
+   #+end_src
+
+   这种方式虽然能够为资源添加一条超链接，但是这种方式是将超链接硬编码到代码中的，不能动态的获取超链接，如果需要动态获取，将上面代码进行改造添加。
+   #+begin_src java
+     bookNameCollection.add(WebMvcLinkBuilder.linkTo(BookController.class) //通过反射的方式拿到请求路径 "/bookName"
+			    .slash("findAll") //将这个这个路径拼接到 "/bookName"后面，拼接后为 "/bookName/findAll"
+			    .withRel("findAll")); //为链接添加关联
+   #+end_src
+
+   通过 =WebMvcLinkBuilder.linkTo()= 这种方式能够动态的获取主机名+端口号+部分URL路径（findAll还是需要硬编码到代码中），还是达不到动态获取整个路径，还需要对代码进行改造。
+
+   #+begin_src java
+     bookNameCollection.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(BookController.class)
+						     .findAll())
+						     .withRel("findAll"));
+   #+end_src
+
+   在这里，静态倒入了 =linkTo()= 和 =methodOn()= 他们都来自 =WebMvcLinkBuilder= ， =methodOn()= 方法使用反射方式传入控制器类，并调用 =.findAll()= 方法。
+
+   这个调用会被 =WebMvcLinkBuilder= 拦截，用来确定控制器的基础路径和 =.findAll()= 的映射路径。现在整个URL都从控制器的映射中判断出来了，而且完全没有硬编码。
+   
+   /创建资源转配器：/
+   到现在，已经为 =findAll= 资源添加了链接，但是还没有为 =findAll= 中的每一个资源添加链接。
+
+   添加的方式有两种，一种方式为遍历 =CollectionModel= 对象中携带每一个 =EntityModel<BookName>= 元素，并逐条添加链接。这种方式过于低级，这里我们使用HATEOAS提供的方式完成链接的添加。
+
+   在开始之前，先创建资源类。关于资源类和领域类的也没有明确的规定，资源类和领域类可以合二为一，也可以分为两个类，这都是看个人喜好。
+
+   这里使用的是分为两个类，为 =BookName= 类创建一个资源类 =BookNameResource= （能够携带实体类数据和超链接的BookName资源类）
+   #+begin_src java
+     // 继承RepresentationModel类的类就是资源类
+     // 这个类和BookName类差不多，省去了id字段，id字段用链接替代
+     // 构造参数传入一个BookName，用bookName实例化BookNameResource资源类
+     // 为字段提供了一个@Getter
+     public class BookNameResource extends RepresentationModel<BookNameResource> { 
+	 @Getter
+	 private final String subject;
+	 @Getter
+	 private final String version;
+	 @Getter
+	 private final String grade;
+	 @Getter
+	 private final String book;
+
+	 // 这是一个资源类， 这个构造函数通过实体类进行实例化
+	 public BookNameResource(BookName bookName){
+	     this.subject = bookName.getSubject();
+	     this.version = bookName.getVersion();
+	     this.grade = bookName.getGrade();
+	     this.book = bookName.getBook();
+	 }
+
+     }
+   #+end_src
+
+   =BookNameResource= 资源类创建成功之后，还需要一个装配 =BookName= 资源的资源转配器类。
+   #+begin_src java
+     // 继承RepresentationModelAssemblerSupport类的类就是资源装配器类，并传入两个类型，分别为实体类和资源类
+     public class BookNameResourceAssembler extends RepresentationModelAssemblerSupport<BookName,BookNameResource> {
+	 //构造函数
+	 public BookNameResourceAssembler() {
+	     super(BookNameController.class, BookNameResource.class);
+	 }
+	 // 通过bookName 实例化BookNameResource, 这个不是必须的
+	 @Override
+	 protected BookNameResource instantiateModel(BookName bookName) {
+	     return new BookNameResource(bookName);
+	 }
+	 // 这个构造函数是继承RepresentationModelAssemblerSupport类必须写的
+	 // 通过bookName 实例化BookNameResource, 并在内部填充一个self链接
+	 @Override
+	 public BookNameResource toModel(BookName bookName) {
+	     return createModelWithId(bookName.getBookId(),bookName);
+	 }
+     }
+   #+end_src
+
+   完成这两个类之后，继续改造 =findAll控制器=
+   #+begin_src java
+     @GetMapping("/findAll")
+     public CollectionModel<BookNameResource> findAll(){
+
+	 List<BookName> bookNames = bookNameService.findAll(); //获取资源
+	 //将资源传入BookNameResourceAssembler()类的toCollectionModel方法，在这个方法中会会在每个条资源中添加链接并返回一个资源集合
+	 CollectionModel<BookNameResource> bookNameCollection = new BookNameResourceAssembler().toCollectionModel(bookNames);
+	 //为这个集合添加一个URL映射
+	 bookNameCollection.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(BookController.class).findAll())
+			 .withRel("findOneBooks"));
+
+	 return bookNameCollection;
+     }
+   #+end_src
+
+   到目前为止，我们已经学习了HATEOAS的基本使用。

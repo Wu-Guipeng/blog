@@ -1,0 +1,41 @@
+#+SETUPFILE: e:/org/我的坚果云/src/css/level.orgcss
+#+TITLE: Org-Mode 使用笔记
+#+AUTHOR: KunPeng
+#+DATE: 2021/10/11
+
+* Org-mode
+** 导出
+*** 导出html
+导出自定义样式，只需要再org文件的头部插入下面两行代码即可
+#+begin_src org
+  ,#+OPTIONS: toc:nil num:3 H:4 ^:nil pri:t
+  ,#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://gongzhitaao.org/orgcss/org.css"/>
+#+end_src
+代码高亮：目前使用的是htmlize插件，这个插件目前的高亮效果并不理想，希望后续能找到比较好看的。
+**** html导出相关设置
+***** DESCRIPTION
+这是文档的描述，导出html的时候自动插入到html中，如果有多行描述，每行都需要使用。
+***** HTML_DOCTYPE
+指定文档类型，如果是html的话使用 *HTML5*
+***** HTML_CONTAINER
+HTML容器，例如 /div/ ,用于包裹部分和元素。
+***** HTML_LINK_HOME
+主页链接
+***** HTML_LINK_UP
+导出HTML的向上链接，就是上一篇文章。
+***** HTML_MATHJAX
+导出HTML时使用 LaTeX 数学排版。
+***** HTML_HEAD
+用于附加再HTML文档头部的任意位置
+***** HTML_HEAD_EXTRA
+用于附加到 HTML 文档的头部 ( org-html-head-extra) 的更多任意行。
+***** KEYWORDS
+描述文档内容的关键字，导出HTML时将这些关键字作为HTML光标插入，对于长关键词，使用多个 *KEYWORDS*
+***** LATEX_HEADER
+附加到序言的任意行；HTML 导出器在将 LaTeX 片段转码为图像时附加
+***** SUBTITLE
+文档的副标题
+
+
+
+

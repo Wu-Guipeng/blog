@@ -1,0 +1,48 @@
+#+TITLE: 记单词
+#+AUTHOR: KunPeng
+#+DATE: 2021/10/11
+
+* 2021/10/11
+| en                      | zh         |
+|-------------------------+------------|
+| need                    | 需要       |
+| argument                | 参数       |
+| which                   | 哪一个     |
+| primary                 | 基本的额   |
+| passed                  | 通过       |
+| expose                  | 暴露       |
+| final                   | 最终的     |
+| part                    | 部分       |
+| our                     | 我们的     |
+| bootstraps              | 引导程序   |
+| standerd                | 标准的     |
+| convention              | 传统的     |
+| entry                   | 入口       |
+| point                   | 点         |
+| application entry point | 程序入口点 |
+|-------------------------+------------|
+
+* 2021/10/13
+| word        | zh       |
+| declaration | 声明     |
+| generally   | 一般来说 |
+| recommend   | 约定     |
+|-------------+----------|
+
+* 2021/10/14
+| word          | zh     |
+|---------------+--------|
+| automatically | 自动的 |
+| attmepts      | 尝试   |
+| Injection     | 注入   |
+| free          | 自由   |
+| using         | 使用   |
+| find          | 找     |
+| structure     | 结构体 |
+| provides      | 提供   |
+| customize     | 定制   |
+| is just like  | 就像   |
+| since         | 自从   |
+|               |        |
+
+

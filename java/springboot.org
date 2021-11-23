@@ -1,0 +1,996 @@
+#+SETUPFILE: e:/org/我的坚果云/src/css/level.orgcss
+#+TITLE: SpringBoot 笔记
+#+AUTHOR: KunPeng
+#+DATA: 2021/10/12
+
+* SpringBoot入门
+** 什么是SpringBoot
+SpringBoot是一个高度集成的框架，在Spring的基础上，对Spring进行封装，并整合了市面上流行的框架。在使用这些框架的时候，SpringBoot只需要少量的配置，就能轻松的构建SpringBoot应用。所以 *SpringBoot并不是新的框架，只是在Spring的基础上再次封装，并整合其他框架。*
+
+** 系统要求
+SpringBoot2.5.5需要Java8，并且兼容java17，还需要Spring Framework 5.3.10+。
+- 构建工具：Maven3.5+
+- Servlet容器：Tomcat9.0
+** 安装SpringBoot
+*** 安装Java
+在安装SpringBoot之前，需要安装java1.8或者更高版本，在开始之前使用下面命令检查当前java是否安装成功。
+#+begin_src shell
+  java -version
+#+end_src
+*** 安装Maven
+SpringBoot与Apache Maven3.3+版本兼容，如果还没有安装Maven，可以按照[[https://maven.apache.org/][maven.apache.org]]上的说明进行安装。
++ 在一些操作系统上可以使用包管理器进行安装，如Ubunt可以运行 *sudo apt-get install maven*
+安装完成之后确保下面命令能成功运行：
+#+begin_src shell
+  mvn -v
+#+end_src
+** 构建SpringBoot第一个应用
+在开始之前确保上面的java和maven都已经安装成功。
+
+在学习任何一门语言和框架，第一个程序都是开发一个 *Hello，Word！* 程序，确保环境配置成功。
+使用Maven来构建Maven构建SpringBoot项目，市面上主流ide都支持它。
+
++ 提示: 如果在开发中遇到一些特定的问题，可以先查阅官方文档，[[https://spring.io][spring.io]].
+1. 也可以从[[https://start.spring.io][start.spring.io]]中构建一个新的SpringBoot项目，填写自己需要的配置，并下载下来使用ide打开这个项目即可。
+2. 可以使用idea进行构建，但是本质上都是使用[[https://start.spring.io][start.spring.io]]网站进行构建。
+*** POM.xml
+在Maven项目中一般都会有一个pom.xml文件，在pom.xml添加下面内容。一般会自动生成。
+#+begin_src xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>myproject</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <parent>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-parent</artifactId>
+      <version>2.5.5</version>
+    </parent>
+
+    <!-- Additional lines to be added here... -->
+  </project>
+#+end_src
+*** 添加依赖
+Spring提供了很多的starters，可以将jar包加载到类路径中，现在pom.xml中有一个starter也是springboot默认启动的starter，这个spring-boot-starter-parent是一个特殊的启动器，为Maven提供默认值。它还提供了一个 _dependency-management_ 部分，可以忽略 _version_ 标签。
+
+其他的 *starters* 在开发特定应用程序时添加依赖到pom.xml中即可，我们现在开发的是web应用程序，因此添加一个 *spring-boot-starter-web* 依赖。在此之前，我们可以通过运行命令的方式来查看已经添加的依赖项。
+#+begin_src shell
+  mvn dependecy:tree
+#+end_src
+该命令打印项目依赖项，并用树形表示。 *spring-boot-starter-parent* 本身并不提供任何依赖项。要添加必要的依赖项，直接在改部分的下方编辑pom.xml并添加 *spring-boot-starter-web* 依赖项。
+#+begin_src xml
+  <dependencies>
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+      </dependency>
+  </dependencies>
+#+end_src
+使用ide再次查看maven依赖，可以看到有需要额外的依赖包，包括Tomcat web服务器和SpringBoot本身。
+*** 编写代码
+为了完成我们的引用程序，我们需要创建一个java文件，默认情况下，Maven默认源代码路径为 _src/main/java_ ,因此需要创建改目录结构。然后添加一个名为 _src/main/java/MyApplication.java_ 文件，并包含一下代码。
+#+begin_src java
+  import org.springframework.boot.SpringApplication;
+  import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+  import org.springframework.web.bind.annotation.RequestMapping;
+  import org.springframework.web.bind.annotation.RestController;
+
+  @RestController
+  @EnableAutoConfiguration
+  public class MyApplication {
+
+      @RequestMapping("/")
+      String home() {
+          return "Hello World!";
+      }
+
+      public static void main(String[] args) {
+          SpringApplication.run(MyApplication.class, args);
+      }
+
+  }
+
+#+end_src
+到此，我们的第一个程序基本搭建完成，可以看到不管是添加依赖，还是编写程序代码，都是非常的简单，并不需要繁琐的配置，虽然代码不多，却帮我们做了很多事情，下面将逐步介绍重要部分。
+**** @RestController 和 @RequestMapping注解
+@RestController源码如下：
+  #+begin_src java
+    @Target({ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @Documented
+    @Controller
+    @ResponseBody
+    public @interface RestController {
+        @AliasFor(
+            annotation = Controller.class
+        )
+        String value() default "";
+    }
+  #+end_src
+从源代码中可以看到两个Spring MVC提供的注解，@Controller和@ResponseBody注解，所以我们可以判断出，@RestController注解有两个目的。
++ 首先：他是一个类似于@Controller和@Service的构造型注解，能够被组件扫描功能发现，并处理web请求。
++ 其次：与REST最相关在于@RestController会告诉Spring，控制器中所有的处理方法的放回值都要直接写入响应体中，而不是将值放到模型中并传递给一个视图进行渲染。
+作为代替方案可以使用@Controller加上@Response
+
+@RequestMapping注解提供 *路由* 信息，它会告诉Spring任何带有/路径的HTTP请求都会映射到htme方法，@RestController注解会告诉Spring得到的字符串直接返回给调用者。
+**** @EnableAutoConfiguration注解
+见名知意，启动自动配置，这个注解会告诉SpringBoot，根据你添加的jar依赖项来 *猜测* 你想如何配置Spring，由于spring-boot-starter-web添加了Tomcat和Spring MVC依赖，自动配置假定你在开发web应用程序，并相应的设置Spring。这个过程完全不需要手动进行配置，这都得益于@EnableAutoConfiguration注解。
+*** main方法
+程序的最后一部分是main方法。这是java标准程序入口，main方法中通过SpringApplication类的run方法委托给SpringBoot，SpringApplication引导我们的应用程序，启动spring，进而启动自动配置配置Tomcat Web服务器。我们需要将MyApplication.class参数作为参数传递给run方法，以判断SpringAppclication那个是主要的Spring组件，args参数列表可以通过命令行进行传参。SpringApplication所作的事情远不止如此，详细后面再讨论。
+*** 运行程序
+再idea中，直接再main方法中运行即可，输出内容如下：
+#+begin_src text
+    .   ____          _            __ _ _
+   /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+  ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+   \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+    '  |____| .__|_| |_|_| |_\__, | / / / /
+   =========|_|==============|___/=/_/_/_/
+   :: Spring Boot ::  (v2.5.5)
+  ....... . . .
+  ....... . . . (log output here)
+  ....... . . .
+  ........ Started MyApplication in 2.222 seconds (JVM running for 6.514)
+#+end_src
+再浏览器中打开http://127.0.0.1:8080, 将的到如下输出：
+#+begin_src text
+  Hello World!
+#+end_src
+** 创建一个可执行的jar包
+我们可以通过创建一个完全独立的可执行的jar包，打包成jar包之后可以再任意系统运行这个程序，能快速的部署在生产环境。可执行jar(有时候称为"fat jars")是包含已编译类以及代码运行所需的所有jar依赖项的文档。
+*** 在打包jar时存在的坑
++ Java不提供加载嵌套jar文件(本身包含在jar中的jar文件)的标准方法。如果这样使用这种方式进行打包，这可能会出问题。
++ 为了解决这个问题，许多开发人员使用"uber" jars, uber jar将应用程序的所有依赖项打包在一个jar中。这种方法的问题在于，很难看出应用程序中有哪些库，如果在多个jar中使用相同的文件名(但内容不同)，也会出现问题。
++ SpringBoot 采用了不同的方法，可以直接jar中嵌套jar。
+要创建一个可执行的jar，需要在pom.xml中添加如下配置，添加在dependencies部分下面。
+#+begin_src xml
+  <build>
+      <plugins>
+          <plugin>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-maven-plugin</artifactId>
+          </plugin>
+      </plugins>
+  </build>
+#+end_src
+maven-plugin插件，这是一个maven打包工具，改插件提供了一组命令，其中package就是打包成jar文件。
+打包之后查看target目录，该目录下有个 _SpringBoot-hello-0.0.1-SNAPSHOT.jar_ 该文件目前只有10MB左右，实际大小会根据项目的规模和添加的依赖决定，如果想要插件里面的内容，解压即可。
+
+在target目录中有一个很小的文件，该文件的后缀为.jar.original文件，这个文件比jar包小得多。
+
+使用下面命令即可运行该程序：
+#+begin_src shell
+  java -jar target/SpringBoot-hello-0.0.1-SNAPSHOT.jar
+#+end_src
+
+* SpringBoot开发
+本节将更详细的介绍应该如何使用springboot。包括构建系统，自动配置以及如何运行应用程序等主题。
+
+** 构建系统
+强烈建议使用依赖管理工具构建系统，可以使用Maven和Gradle。
+
+*** 依赖管理
+springboot的每个版本都提供了依赖项列表，实际上，开发者不需要在配置中为这些依赖项显式的提供一个版本，应为SpringBoot会管理这些，当升级SpringBoot的时候，实际上这些依赖项的也会进行升级。
++ 如果需要，你仍然可以向SpringBoot提供一个指定的版本，SpringBoot会覆盖原有的版本。
++ *SpringBoot的每个版本都与SpringFramework的一个基础版本相关联，不建议指定其他本版。*
+
+** Starters
+Starters是一组依赖的集合，可以将它们包含在应用程序中。您可以获得所需的所有Spring和相关技术的一站式服务，无一个一个添加依赖项。例如，如果你想使用Spring和JPA进行数据库访问，将 _spring-boot-starter-data-jpa_ 添加在pom.xml依赖项中即可。
+
+starters包含需要依赖，使用这些依赖快速启动和运行项目，所以说staters是一组依赖项的集合。
+
+*** starters中都有什么
+所有官方的starters都遵循类似的命名模式， _spring-boot-starter-*_ ,其中*是特定类型的应用程序，官方提供了很多starters，如果你要为你的应用程序提供特定的功能，只需要添加一组starters就可以了。需多ide中的Maven集成运行你按名称搜索依赖项。
+
+如果你需要创建自己的启动器，或者添加第三方的启动器，开都都不应该已 _spring-boot_ 开头，因为他是SpringBoot官方保留的。相反，第三方启动器通常以项目名字开头。
+
+
+** 编写代码
+SpringBoot不需要特定的代码布局即可运行。但是，有一些约定可以提供帮助。
+*** 使用默认包
+当一个类不在一个包中的时候，被认为是在默认包中的，对于使用@ComponentScan, @ConfigurationPropertiesScan, @EntityScan, or @SpringBootApplication注解的SpringBoot应用程序，可能会导致一些特定的问题，应为每个jar中的每个类都会被读取。
+
++ 我们不建议使用默认package，建议使用java约定的包路径，反向域名（com.example.project）
+*** main程序入口
+springboot官方建议我们将主程序入口类放在根路径，因为 *@SpringBootApplication* 注解一般是放在主类(包含main方法的类)上，主类启动的时候，会扫描spring的注解，并将这些注解下面的类当作组件放入spring容器中。
+
++ *@SpringBootApplication* 实现了两个注解， *@EnableAutoConfiguration和@ComponentScan* 注解，如果你不想使用@SpringBootApplication，可以使用这两个注解一样能实现相同的功能。
+
+SpringBoot应用程序布局如下：
+#+begin_src text
+  com
+   +- example
+       +- myapplication
+           +- MyApplication.java
+           |
+           +- customer
+           |   +- Customer.java
+           |   +- CustomerController.java
+           |   +- CustomerService.java
+           |   +- CustomerRepository.java
+           |
+           +- order
+               +- Order.java
+               +- OrderController.java
+               +- OrderService.java
+               +- OrderRepository.java
+#+end_src
+
+
+下面代码是MyApplication.java文件，这是SpringBoot应用的主程序，里面有main方法，并带有 *@SpringBootApplication* 注解。
+#+begin_src java
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MyApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(MyApplication.class, args);
+    }
+
+}
+#+end_src
+*** 配置类
+SpringBoot支持基于java 配置。但是你仍然可以使用XML配置一起使用。
+*** 导入额外的配置
+你不需要为每一个类添加@Configuration，可以使用@Import注解导入其他配置，还可以使用@ComponentScan自动扫描所有包含@Configuration的spring组件。
+*** 使用xml导入配置
+如果你想使用XML导入配置，可以使用@ImportResource注解指定xml文件，我们仍然建议你使用@Configuration进行配置。
+*** 自动配置
+SpringBoot自动配置尝试根据你添加的jar依赖自动的配置你的spring应用程序。例如：使用redis内存数据库，在classpaht路径中没有任何关于redis的配置，只要在本地安装并启动reids服务后，springboot会自动加载配置并连接数据库。
+*** 覆盖自动配置类
+自动配置是非入侵性的，在任何时候，你都可以定义自己的配置来覆盖自动配置的特定部分。
+*** 禁用自动配置类
+如果你想禁用特定的自动配置类，在@SpringBootApplication的exclude属性中禁用他们，例如：
+#+begin_src java
+  @SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
+  public class MyApplication {
+  }
+
+
+#+end_src
+当然还有其他方式可以禁用自动配置类。
+*** 依赖注入
+可以自由的使用任何标准的Spring Framework技术来定义beans和依赖注入。通常建议使用构造行数来注入依赖，并使用@ComponentScan来查找bean。
+
+使用构造函数进行依赖注入，可以使用不带任何参数的@ComponentScan或者包含它的其他注解（@SpringBootApplication），你的所有应用程序组件（@Component,@Service,@Repository,@Controller等）都会自动注册为spring bean.
+
+下面的例子是一个@Service Bean,使用构造函数所需要的RiskAssessor Bean。
+#+begin_src java
+  @Service
+  public class MyAccountService implements AccountService{
+      private final RiskAssessor riskAssessor;
+
+      public MyAccountService(RiskAssessor riskAssessor){
+          this.riskAssessor = riskAssessor;
+      }
+
+      //...
+  }
+#+end_src
+
+如果一个bean中有多个构造函数，需要使用@AutoWired注解标记你希望spring使用的构造函数。
+
+#+begin_src java
+  import java.io.PrintStream;
+
+  import org.springframework.beans.factory.annotation.Autowired;
+  import org.springframework.stereotype.Service;
+
+  @Service
+  public class MyAccountService implements AccountService {
+
+      private final RiskAssessor riskAssessor;
+
+      private final PrintStream out;
+
+      @Autowired
+      public MyAccountService(RiskAssessor riskAssessor) {
+          this.riskAssessor = riskAssessor;
+          this.out = System.out;
+      }
+
+      public MyAccountService(RiskAssessor riskAssessor, PrintStream out) {
+          this.riskAssessor = riskAssessor;
+          this.out = out;
+      }
+
+      // ...
+
+  }
+
+
+#+end_src
+*** 使用@SpringBootApplication注解
+@SpringBootApplication启用了三个功能，即：
+- @EnableAutoConfiguration：启动SpringBoot自动配置
+- @ComponentScan：扫描组件
+- @SpringBootConfiguration：实现的功能与@Configuration一致，只不过@Configuration是Spring提供的，SpringBootConfiguration是SpringBoot提供的。
+#+begin_src java
+  import org.springframework.boot.SpringApplication;
+  import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+  @SpringBootApplication // same as @SpringBootConfiguration @EnableAutoConfiguration
+                          // @ComponentScan
+  public class MyApplication {
+
+      public static void main(String[] args) {
+          SpringApplication.run(MyApplication.class, args);
+      }
+
+  }
+#+end_src
+这些功能都不是必须使用的，你可以根据自己的需求来使用它们。
+#+begin_src java
+  @EnableAutoConfiguration
+  @SpringBootConfiguration(proxyBeanMethods = false)
+  @Import({com.kunpeng.controller.HelloController.class})
+  public class SpringBootHelloApplication {
+
+      public static void main(String[] args) {
+          SpringApplication.run(SpringBootHelloApplication.class, args);
+      }
+#+end_src
+这个例子中，和上面的例子实现了相同的功能，只是缺少了自动扫描组件的功能，需要手动导入。
+*** 开发者工具
+SpringBoot包含一组二外的工具，帮助开发者开发SpringBoot应用程序。
+
+spring-boot-devtools模块可以包含在任何项目中，提供额外的开发时功能。将下面依赖添加在pom.xml文件中即可。
+#+begin_src xml
+  <dependencies>
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-devtools</artifactId>
+          <optional>true</optional>
+      </dependency>
+  </dependencies>
+#+end_src
+在使用打包应用程序时，spring-boot-devtools工具会自动禁用。如果你是从java -jar特殊的类加载器启动中启动的，则被视为生产环境，可以使用spring。devtools.restart.enabled系统属性来开启或者关闭开发者工具，在特殊的类加载器中启动，默认是关闭的，如果要开启在启动时添加参数：-D spring.devtools.restart.enabled=true, 不建议在生产环境中使用开发者工具，可能存在安全风险。
+
+* SpringBoot特性
+** SpringBootApplication
+*** SpringBoot启动器
+在mian方法中使用SpringApplication.run()方法，并在mian()方法所在的类上添加 *@SpringBootApplication* 注解
+#+begin_src java
+  @SpringBootApplication
+  public class MyApplication {
+
+      public static void main(String[] args) {
+          SpringApplication.run(MyApplication.class, args);
+      }
+
+  }
+#+end_src
+一般来说，SpringBoot启动程序如上所示。
+
+*** 启动失败
+启动你失败的一种典型例子就是8080端口已被占用，当我们启动两个SpringBoot应用时，都是用相同的端口，第二个程序就会启动失败，或者8080端口被其他程序占用。8080端口被占用启动失败会输出如下信息：
+#+begin_src text
+  ,***************************
+  APPLICATION FAILED TO START
+  ,***************************
+
+  Description:
+
+  Embedded servlet container failed to start. Port 8080 was already in use.
+
+  Action:
+
+  Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+#+end_src
+
+如果遇到其他启动失败的情况下可以使用--debug 日志级别，SpringBoot默认使用的时INFO日志级别，debug模式可以在SpringBoot配置文件中配置，也可以使用命令行参数，也可以使用idea的debug模式，如果实在找不到解决方法，可以使用搜索引擎或者请教他人。
+
+*** 延迟加载模式
+SpringBoot运行使用延迟加载模式启动程序。启动延迟加载模式后，bean只有在使用的时候被创建，而不会在程序启动的时候创建，提高了程序启动的速度。在http请求的时候创建bean，http请求的响应时间增加了。
+
+同时延迟加载还有一个致命的缺点，如果bean配置错误或者其他问题导致运行时发生故障，并且只有初始化bean时才会发现问题。并且确保JVM又足够的内存来容纳所有bean，而不是仅仅在启动期间才会初始化的bean。应为这些原因，SpringBoot默认情况时不启用延迟加载的，如果使用延迟加载，首先应该确保JVM有足够的内存。
+
+启动懒加载模式的方式有很多种：
++ lazyInitialization
++ SpringApplicationBuilder
++ setLazyInitialization
++ 配置文件中启用 spring.mian.lazyInitialization=true
+
+*** 自定义banner
+banner是在SpringBoot程序器动的时候在控制在输出指定的内容，默认情况下SpringBoot在启动的时候打印如下内容
+#+begin_src java
+    . ____ _ _ _
+   /\\ / ___'_ __ _ _(_)_ __ __ _ \ \ \ \
+  ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+   \\/ ___)| |_)| | | | | || (_| | ) ) ) )
+    ' |____| .__|_| |_|_| |_\__, | // / /
+   ==========|_|==============|___/=/_/_/_/
+   :: Spring Boot :: v2.5.5
+#+end_src
+
+如果想在控制台中输出指定的banner，只需要在classpath:目录下添加banner.txt文件即可，我们不需要添加任何额外的配置， *约定大于配置* 。
+
+还可以在bannner.txt中使用变量输出sprigboot应用名称，版本信息等等
+[[./img/20211019150032.png]]
+
+当然，还可以使用其他方式使用banner，具体使用方式请查看[[https://docs.spring.io/spring-boot/docs/2.5.5/reference/html/features.html#features][SpringBoot官网]].
+
+*** 自定义SpringApplication
+如果不喜欢SpringBoot默认的设置，还可以进行自定义。例如关闭banner，代码如下
+#+begin_src java
+  @SpringBootApplication
+  public class MyApplication {
+
+      public static void main(String[] args) {
+          SpringApplication application = new SpringApplication(MyApplication.class);
+          application.setBannerMode(Banner.Mode.OFF);
+          application.run(args);
+      }
+
+  }
+#+end_src
+这种方法是使用java进行配置，当然也可以使用 ~application.yml~ 进行配置。
+
+** SpringBoot配置
+SpringBoot允许你将配置写在一个外置的配置文件中，以便于在不同的环境中使用相同的应用程序代码，包括propreties,yaml,环境变量，命令行参数等。
+
+外部的配置文件中的属性值会通过自动配置注入到对应的带有@Value注解的属性中。
+
+SpringBoot使用了一个非常特殊的PropertySource顺序，该顺序运行合理的覆盖值。属性按以下顺序进行覆盖。
++ 默认属性（通过设置SpringApplication.setDefaultProperites）
++ 将@PropertySource注解添加到@Configuration类上
++ Config data（such as application.properties files）
++ 仅在random.* 中具有属性的RandomValuePropertySource
++ OS environment variables.
++ java System properites(System.getProperites())
++ 来自java:comp/env的JNDI属性
++ ServletContext init parameters.
++ ServletConfig init parameters.
++ Properites form SPRING_APPLICATION_JSON(嵌入在环境变量或系统属性中的内联JSON).
++ Command line arguments.
++ 测试中的properties属性，在@SpringBootTest和测试注解，用于测试应用程序的特定部分。
++ 测试中的@TestPropertySource注解。
++ 当devtools处于活动状态是，  $HOME/.config/spring-boot目录中的Devtools全局设置属性。
+  
+SpringBoot配置来源非常多，我们也不可能每种都需要用到，这里指说一下最常使用的配置方式Config Data 也就是第三种配置，使用外部文件，这种方式可以使用两种方式
++ .properites
++ .ymal(和ymal变体)
+这两种各有个的优势，怎么使用见仁见智，其中.properites可以使用多个配置文件配置多套环境，格式为application-{file}.properties,如开发环境用application-dev.properites,生产环境application-pro.properties,测试环境application-test.properties, 激活这些环境只需要在application.properites 中添加spring.profiles.active={file}即可。
+
+ *建议在整个应用程序中坚持使用同一种格式的配置文件，如果配置文件目录下同时存在.properties和.yml格式，.properties有限使用。*
+
+
+ 例如：
+ #+begin_src java
+   @Component
+   public class MyBean {
+
+       @Value("${name}")
+       private String name;
+
+       // ...
+
+   }
+ #+end_src
+ 在这个类中使用了@Component确保类能被SpringBoot扫描到，在name字段上添加了@Value注解，并使用了一个名字，这个名字会匹配配置文件中对应的属性。
+ 在配置文件中添加name= 字段，就可以将配置文件中的值注入到对MyBean类中， 也可以使用命令行参数 --name="".
+
+ 
+*** 命令行参数
+默认情况下，SpringApplication将任何命令行选项参数(以--开头,例如：--server.port=8080)转为property并将它们添加到SpringEnvironment,命令行参数始终优先于基于文件的配置。
+
+如果不希望将命令行参数添加到Environment中，可以使用SpringApplication.setAddCommandLineProperties(false)禁用。
+
+*** 使用JSON进行配置
+环境变量和系统变量通常都有限制，这意味着某些属性名称不能重复使用，为了解决这个问题，SpringBooot允许将一组属性编码为单个JSON结构。
+
+当你的应用程序启动时，任何spring.application.json或SPRING_APPLICATION_JSON属性将被解析并添加到Enviroment中。
+
+例如：
+#+begin_src shell
+  SPRING_APPLICATION_JSON='{"my":{"name":"test"}}' java -jar myapp.jar
+#+end_src
+上面的例子中，将my.name=test添加到Environment中。
+
+#+begin_src shell
+  java -jar myapp.jar --spring.application.json='{"my":"name":"test"}'
+#+end_src
+
+*** 外部配置
+SpringBoot会自动加载 *application.properites* 或者 *application.yaml* 配置文件启动应用程序。
++ 从classpath路径
+  + classpath根路径
+  + classpath 下的/config路径
+
++ 从当前目录
+  + 从当前目录
+  + 从当前目录的子目录/config
+  + 从子目录/config的直接子目录
+
+该列表按优先级排序（来自较低项目的值覆盖较早的项目），文档加载文件添加PropertySource到Spring Environment
+
+如果跟你不喜欢application这个配置文件名，你可以指定一字spring.config.name到spring environment 属性中，例如： 寻找myproject.properties和myproject.yaml文件运行你的应用程序。
+#+begin_src shell
+  java -jar myproject.jar --spring.config.name=myproject
+#+end_src
+
+还可以使用spring.config.location环境属性来显示的引用本地的配置文件。这个属性接受一个或者多个配置文件，并使用都开分开。
+#+begin_src shell
+  java -jar myproject.jar --spring.config.location=\
+       optional:classpath:/default.properties,\
+       optional:classpath:/override.properties
+#+end_src
+
+optional:是可选的，不写也可以。
+
+如果spring.config.location包含的是目录（不是文件），会将目录下的所以配置文件在加载之前配置到spring.config.name中。
+
+在加载配置文件的时候，也会检查改目录下有没有特定的配置文件，例如： *classpath:myconfig-<profile>.properites* 也会被检查并加载。
+
+大多数情况下，spring.config.location都将引用当个文件或目录。位置按照定义的顺序进行处理，后面的配置文件可以覆盖前面的配置文件。
+
+如果你有一个复杂的路径设置，并且有特定的配置文件，您需要进一步的设置，以便springboot进行分组。改路径下的所有文件被视为同一级别的集合。例如：将所有类路径下的位置进行分组，将所有外部位置进行分组，就需要设置两个路径，两个路径之间使用分号(;)隔开。
+
+使用spring.config.location替换默认路径,例如：
+#+begin_src text
+  spring.config.location=optional:classpath:/coustom-config/,optional:file:./coustom-config/
+#+end_src
+
+则考虑的位置集为：
++ optional:classpath:coustom-config/
++ optional:file:./coustom-config/
+
+如果你还想添加额外的路径，并且不覆盖原有的路径可以使用 *spring.config.additional-location* 进行配置，value *optional:classpath:/custom-config/,optional:file:./custom-config/* ，则考虑的位置集为：
++ optional:classpath:coustom-config/
++ optional:file:./coustom-config/
++ optional:classpath:/;optional:classpath:/config/
++ optional:file:./;optional:file:./config/;optional:file:./config/*/
+
+这种搜索顺序允许你在一个配置文件中指定默认值，然后在另一个配置文件中选择性的覆盖这些值。
+
+*** YAML和properties对比
+YAML
+#+begin_src text
+  environments:
+      dev:
+          url: https://dev.example.com
+          name: Developer Setup
+      prod:
+          url:https://anther.example.com
+          name: My Cool App
+#+end_src
+
+注意：在属性:后面必须加空格
+
+properties
+#+begin_src text
+  environments.dev.url=https://dev.example.com
+  environments.dev.name=Developer Setup
+  environments.prod.url=https://another.exmaple.com
+  environments.prod.name=My Cool App
+#+end_src
+
+上面这两中方式是等价的，只是写法不同。
+
+*** 直接加载YAML
+SpringFramework提供了两个类用于加载YAML，YamlPropertiesFactoryBean负责将YAML加载为Properties，YmalMapFactoryBean负责将YAML加载为Map。
+
+*** 配置随机值
+配置文件里面还可以写变量，用于扩展配置文件。例如随机值，它可以生成整数，长整数，uuid或者字符串等等。
+#+begin_src text
+  my.secret=${random.value}
+  my.number=${random.int}
+  my.bignumber=${random.long}
+  my.uuid=${random.uuid}
+  my.number.less-than-the=${random.int(10)}
+  my.number-in-range=${random.int[1024,65536]}
+#+end_src
+
+*** JavaBean 属性绑定
+编写下面实体类
+#+begin_src java
+  @Component
+  @ConfigurationProperties("my.service")
+  public class MyProperties {
+
+      private boolean enabled;
+      private InetAddress remoteAddress;
+      private final Security security = new Security();
+      // getters / setters...
+
+      public static class Security {
+          private String username;
+          private String password;
+          // getters / setters...
+
+      }
+  }
+
+#+end_src
+在application.properties配置文件中添加
+#+begin_src text
+  my.service.enabled=false
+  my.service.remoteAddress=127.0.0.1
+  my.service.security.username=kunpeng
+  my.service.security.password=kunpeng
+  my.service.security.roles=kunpeng
+#+end_src
+
+
+@ConfigurationProperties的参数my.service是配置文件中的前缀。
+
+通过@ConfigurationProperties映射到类的属性可以通过，环境变量，系统变量，配置文件等进行配置，是一个公共的API
+
+*** 构造函数绑定
+    重写上个示例：
+    #+begin_src java
+      @ConstructorBinding
+      @ConfigurationProperties("my.service")
+      public class MyProperties {
+
+	  // fields...
+
+	  public MyProperties(boolean enabled, InetAddress remoteAddress, Security security) {
+	      this.enabled = enabled;
+	      this.remoteAddress = remoteAddress;
+	      this.security = security;
+	  }
+
+	  // getters...
+
+	  public static class Security {
+
+	      // fields...
+
+	      public Security(String username, String password, @DefaultValue("USER") List<String> roles) {
+		  this.username = username;
+		  this.password = password;
+		  this.roles = roles;
+	      }
+
+	      // getters...
+
+	  }
+
+      }
+    #+end_src
+    为了让代码更加简介，这里简写了get/set, fields部分，在这个示例中新增了构造函数，为属性注入值。
+
+    并在类的上面添加一个新的构造函数 _@ConstructorBinding_ ,这个注解用于绑定构造函数，这意味着绑定器期望找到一个带有你希望绑定的构造函数。
+
+    在构造函数中可以为属性指定默认值， _@DefaultValue_ 可以为属性指定默认值，只需要在构造函数的参数前添加即可，如果不添加这个注解并且没有值传入的话这个值默认为空，如果想希望参数没有绑定任何属性也返回一个非空实例，可以使用 _@DefaultValue_ 注解来操作。
+
+    #+begin_src java
+      public MyProperties(boolean enabled, InetAddress remoteAddress, @DefaultValue Security security){
+	  this.enabled = enabled;
+	  this.remoteAddress = remoteAddress;
+	  this.security = security;
+      }
+    #+end_src
+
+    + 使用构造函数绑定，必须使用 _@EnableConfigurationProperties_ 或配置属性扫描启动类。不能使用常规的bean使用构造函数绑定(例如：不能使用 _@Compoent_ _@Import_ 等方法加载bean)
+
+      
+*** 启用@ConfigurationProperties注解
+**** 作用
+    *@EnableConfigurationProperties注解的作用是：使使用 @ConfigurationProperties 注解的类生效。*
+    SpringBoot提供基础结构来绑定@ConfigurationProperties类型并将它们注册为bean。你也可以在每个类的基础上启用配置属性。
+
+    有些时候@ConfigurationProperties可能不适合扫描，这个时候就可以使用@EnableConfigurationProperties注解。
+
+
+    
+*** 使用@ConfigurationProperties注解
+    这种配置风格特别适用于外部YAML配置
+    #+begin_src xml
+      my:
+	  service:
+	      remote-address: 192.168.1.1
+	      security:
+		  username: admin
+		  roles:
+		    - USER
+		    - ADMIN
+    #+end_src
+
+    使用 _@ConfigurationProperties_ bean。 _@Service_ 注解中有@Component注解，所以SpringBoot会将该类以组件的方式扫描，并添加在Spring容器中。 
+    #+begin_src java
+      @Service
+      public class MyService {
+
+	  private final SomeProperties properties;
+
+	  public MyService(SomeProperties properties) {
+	      this.properties = properties;
+	  }
+
+	  public void openConnection() {
+	      Server server = new Server(this.properties.getRemoteAddress());
+	      server.start();
+	      // ...
+	  }
+
+	  // ...
+
+      }
+    #+end_src
+
+
+    
+*** 第三方配置
+    当你想要将属性绑定到你无法控制的第三方组件时，可以使用 _@Bean_ 和 _@ConfigurationProperties_ 注解组合使用；
+    #+begin_src java
+      @Configuration(proxyBeanMethods = false)
+      public class ThirdPartyConfiguration {
+
+	  @Bean
+	  @ConfigurationProperties(prefix = "another")
+	  public AnotherComponent anotherComponent() {
+	      return new AnotherComponent();
+	  }
+
+      }
+    #+end_src
+
+
+    
+*** 松弛绑定
+    SpringBoot使用一些宽松的规则进行属性绑定，不区分大小写下划线等常见的命名方式。
+
+    
+*** 绑定map
+    绑定到Map属性时，需要使用特殊的括号表示法；
+
+    例如： 考虑将一下属性绑定到 _a Map<String,String>_ :
+    #+begin_src xml
+      my.map.[key1] = value1
+      my.map.[key2] = value2
+      my.map.[key3] = value3
+    #+end_src
+
+    后面还有合并复杂类型等，详细查看官网。
+
+    属性绑定的方式有很多种，一个项目中不可能每种都能使用到，选择一两种适合自己的方式即可。
+
+** Profile
+*** 作用
+    它的主要作用就是让SpringBoot可以更具不同环境提供不同的配置功能支持。
+
+    在实际的开发中，我们一般有这样几个场景：发开，测试，生产环境等，不同的环境有不同的配置。如果在每个环境中都需要修改配置文件会非常的麻烦，二通过Profile则可以轻松的解决。
+
+*** 使用
+    更具上面不同的环境，我们可以在 ~resources~ 目录下创建4个配置文件：
+    + application.properties: 公共配置
+    + application-dev.properties: 开发环境
+    + application-test.properties: 测试环境
+    + application-prod.properties: 生产环境
+
+    完成之后在 ~application.properites~ 中配置公共配置，然后激活指定配置：
+    #+begin_src xml
+      spring.profiles.active=prod
+    #+end_src
+
+    YAML配置为
+    #+begin_src xml
+      spring:
+	profiles:
+	  active: prod
+    #+end_src
+
+    Spring Profiles提供了一种外部配置文件的方式进行配置，并且只有某些环境中可用的方法。 ~@Component~ , ~@Configuration~, ~@ConfigurationProperties~ 可以在 ~@Profile~ 加载时标记为限制。
+
+   #+begin_src java
+     @Configuration(proxyBeanMethods = false)
+     @Profile("production")
+     public class ProductionConfiguration {
+
+	 // ...
+
+     }
+   #+end_src
+
+    ~@ConfigurationProperties~ bean是通过 ~@EnableConfigurationProperties~ 注解生效的，而不是自动扫描，则需要在具有 ~@EnableConfigurationProperties~ 注解的 ~@Configuration~ 类上指定 ~@Profile~ 注解。在扫描 ~@ConfigurationProperties~ 的情况下，可以在 ~@ConfigurationProperties~ 类本省上指定 ~@Profile~ 。
+
+** 日志
+    SpringBoot使用 ~Commons~ 日志记录所有内部日志，但保留底层日志实现的打开状态。为 ~Java Util Logging~, ~Log4J2~ and ~Logback~ 提供了默认配置。 在每种情况下，记录器都预先配置为使用控制台输出，也可以选择使用文件输出。
+
+    默认情况下，如果使用 ~Starters~, 则使用 ~Logback~ 进行入职记录。还包括适当的 ~Logback~ 路由，以确保使用 ~Java Util Logging~, ~Commons Logging~, ~Log4J~ or ~SLF4J~ 的依赖库都能正常工作。
+
+*** 日志格式化
+     这是SpringBoot默认日志输出格式：
+     #+begin_src text
+       2021-10-26 15:11:57.735  INFO 9868 --- [  restartedMain] com.workbook.WorkBookApplication         : Starting WorkBookApplication using Java 1.8.0_221 on liuquan with PID 9868 (F:\source\Java\WorkBook\target\classes started by dell in F:\source\Java\WorkBook)
+       2021-10-26 15:11:57.738  INFO 9868 --- [  restartedMain] com.workbook.WorkBookApplication         : No active profile set, falling back to default profiles: default
+       2021-10-26 15:11:57.777  INFO 9868 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+       2021-10-26 15:11:57.778  INFO 9868 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+       2021-10-26 15:11:58.442  INFO 9868 --- [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode!
+     #+end_src
+
+     日志输出中包含以下内容：
+     + Date and Time: 精确到毫秒级，方便排序
+     + 日志级别： ~ERROR~, ~WARN~, ~INFO~, ~DEBUG~, or ~TRACE~.
+     + 进程ID
+     + 一个 ~---~ 分割符，用于区分实际日志消息的开始
+     + 现场名称： 用括号括起来（控制台输出可能中断）
+     + 记录器名称：这通常是源类名称（通常是缩写）
+     + 日志消息
+       
+
+*** 控制台输出
+     默认日志配置将消息输出在控制台中，默认情况下，会记录 *错误级别、警告级别和信息级别* 。 还可以使用 _--debug_ 标志启动应用程序并启动 _debug_ 模式。
+
+     启用 _debug_ 模式时，通常会输出更多信息。
+
+     使用命令行启用：
+     #+begin_src shell
+       java -jar myapplication.jar --debug
+     #+end_src
+
+     使用配置文件启用：在 ~application.properites~ 中添加 ~debug=true~ 开启调试模式。
+
+*** 文件输出
+     默认情况下，日志信息只输出在控制台中，不写入文件，如果你想将控制台中输出的日志写入日志文件中，需要在 ~application.properties~ 配置文件中设置 ~logging.file.name~ 或者 ~loggin.file.path~ ，使其指向一个日志文件。
+
+     | logging.file.name | logging.file.path | Example  | Description                                  |
+     |-------------------+-------------------+----------+----------------------------------------------|
+     | none              | none              |          | Console only logging                         |
+     | Specific file     | none              | my.log   | 写入指定文件，可以是相对路径也可以时绝对路径 |
+     | none              | Specific          | /var/log | 吸入指定文件，可以是相对路径也可以时绝对路径 |
+     |-------------------+-------------------+----------+----------------------------------------------|
+
+
+
+
+** 国际化
+   SpringBoot支持国际化功能，能满足不用语言偏好的用户。默认情况下，SpringBoot在类路径的根目录下查找消息资源包是否存在。
+
+   再配置文件中添加下面配置：
+   #+begin_src text
+     spring.message.basename=message,config.i18n.message
+     spring.message.fallback-to-system-locale=false
+   #+end_src
+
+    ~spring.message.basename~ 以逗号隔开，可以使用包限定名，可以是根路径解析的资源。
+    
+** JSON
+   SpringBoot提供了三个json库：
+   + Gson
+   + Jackson
+   + JSON-B
+
+   Jackson是默认和首选。
+
+** 开发web应用程序
+ 在SpringBoot应用程序中，只需要在 ~pom.xml~ 配置文件中添加 ~spring-boot-starter-web~ 即可开启web程序。
+*** SpringMVC框架
+**** 简介
+   Spring Web MVC fremework（称为SpringMVC）,是一种 ~Model-View-Controller~ Web框架，SpringMVC允许你创建特殊的 ~@Controller~ 或 ~@RestController~ bean来处理传入的http请求，控制器中的方法通过使用 ~@RequestMapping~ 注解映射到http。
+
+    ~@RestController~ 是 ~@Controller~ 的变体，被 ~@RestController~ 注释的类，该类下的所有方法都不会渲染视图，都会直接以JSON字符串的格式放回到对应的请求。
+
+    下面就是一个典型的例子：
+    #+begin_src java
+      @RestController
+      @RequestMapping("/users")
+      public class TestController {
+	  @Autowired
+	  private UserServiceImpl userService;
+
+	  @GetMapping("/{username}")
+	  public String getUser(@PathVariable String username){
+	      return userService.getUserByName(username).toString();
+	  }
+
+      }
+    #+end_src
+
+     ~TestController~ 类上有两个注解，这两个注解对整个类都有效。
+
+     SpringVMC是Spring核心框架的一部分。
+
+**** Spring MVC Auto-configuration
+   SpringBoot为SpringMVC提供了自动配置，可用于大部分应用程序。
+
+   自动配置在默认的基础上添加了以下功能：
+   + 包含了 ~ContentNegotiatingViewResolver~ 和 ~BeanNameViewResolver~ beans. *视图解析器*
+   + 支持服务静态资源的支持，和Webjars的支持. *静态资源文件夹路径*
+   + 自动注册， ~Converter~ ， ~GenericConverter~ and ~Formartter~ beans. *转换器，格式化器*
+   + 支持 ~HttpMessageConverters~ *SpringMVC用来转换Http请求和响应的；User-JSON*
+   + 自动注册和 ~MessageCodesResolver~ *定义错误代码生成规则*
+   + 静态 ~index.html~ 支持 *静态首页访问*
+   + 自动使用 ~ConfigurableWebBindingInitializer~
+
+   如果你想保留这些SpringBootMVC配置，并且想配置更多的MVC配置（过滤器，拦截器，格式化功能和其他功能），你可以编写自己的 ~@Configuration~  type类， ~WebMvcConfigurer~  但不添加 ~@EnableWebMvc~ 。如果你希望提供，或自定义实例 ~RequestMappingHandlerMapping~ ,则可以声明一个实例来提供此类组件。
+   ~RequestMappingHandlerAdapter ExceptionHandlerExceptionResolver WebMvcRegistrationsAdapter~
+
+   详细详解查看[[https://juejin.cn/post/6844904112337715207][博客]] [[https://blog.csdn.net/m0_37989980/article/details/105474278][博客]]
+   
+**** HttpMessageConverters
+   SpringMVC使用 ~HttpMessageConverters~ 接口转换HTTP请求和响应。合理的配置开箱即用。例如：对象可以自动转换为JSON（通过Jackson）或XML（通过Jackson XML扩展，如果XML扩展不可用，则通过使用JAXB）。默认情况下，字符串以UTF-8编码。
+
+   如果需要添加或者自定义转换器，可以使用SpringBoot的 ~HttpMessageConverters~ 类。
+
+**** 自定义JSON序列化和反序列化
+   如果使用Jackson对JSON数据进行序列化和反序列化，则可能需要编写自己的 ~JsonSerializer~ 和 ~JsonDeserializer~ 类。自定义序列化程序通常通过模块向Jackson注册，但Spring Boot提供了另一种 ~@JsonComponent~ 注解，使直接注册SpringBean变得更容易。
+您可以直接在JsonSerializer、JsonDeserializer或KeyDeserializer实现上使用@JsonComponent注释。您还可以在包含序列化器/反序列化器作为内部类的类上使用它，如以下示例所示：
+#+begin_src java
+  @JsonComponent
+  public class MyJsonComponent {
+
+      public static class Serializer extends JsonSerializer<MyObject> {
+
+	  @Override
+	  public void serialize(MyObject value, JsonGenerator jgen, SerializerProvider serializers) throws IOException {
+	      jgen.writeStringField("name", value.getName());
+	      jgen.writeNumberField("age", value.getAge());
+	  }
+
+      }
+
+      public static class Deserializer extends JsonDeserializer<MyObject> {
+
+	  @Override
+	  public MyObject deserialize(JsonParser jsonParser, DeserializationContext ctxt)
+		  throws IOException, JsonProcessingException {
+	      ObjectCodec codec = jsonParser.getCodec();
+	      JsonNode tree = codec.readTree(jsonParser);
+	      String name = tree.get("name").textValue();
+	      int age = tree.get("age").intValue();
+	      return new MyObject(name, age);
+	  }
+
+      }
+
+  }
+#+end_src
+
+  ApplicationContext中的所有 ~@JsonComponent~ bean都会自动向Jackson注册。因为 ~@JsonComponent~ 是用 ~@Component~ 进行元注解的，所以通常的组件扫描规则适用。
+
+**** MessageCodesResolver
+    SpringMVC有一个生成错误代码的策略，用于从绑定错误中呈现错误消息： ~MessageCodesResolver~ 。如果设置 ~spring.mvc.message-codes-resolver-format~ 属性 ~PREFIX_ERROR~ or ~POSTFIX_ERROR_CODE~ ，spring Boot将为您创建一个属性（请参阅DefaultMessageCodesResolver.format中的枚举）。
+
+**** 静态资源
+    默认情况下，SpringBoot服务的静态资源目录为 ~/static~ （or ~/public~ or ~/resources~ or ~/MATE-INF/resources~ ）来自类路径中或者来自 ~ServletContext~ ，它使用来自SpringMVC的 ~ResourceHttpRequestHandler~ ,因此，您可以通过添加自己的WebMVCConfigure并重写addResourceHandlers方法来修改该行为。
+
+    在一个独立的web应用程序中，容器中的默认servlet也被启用，并充当后备服务，如果Spring决定不处理它，则从ServletContext的根目录提供内容。大多数情况下，这种情况不会发生（除非修改默认的MVC配置），因为Spring始终可以通过DispatcherServlet处理请求。
+
+    默认情况下，资源映射到/**，但您可以使用 ~spring.mvc.static-path-pattern~ 属性对其进行调优。例如，将所有资源重新定位到/resources/**可以通过以下方式实现：
+    #+begin_src text
+      spring.mvc.static-path-pattern=/resources/**
+    #+end_src
+
+    您还可以使用spring.web.resources.static-locations属性（用目录位置列表替换默认值）自定义静态资源位置。根Servlet上下文路径“/”也会自动添加为一个位置。
+    
+
+**** index.html
+    SpringBoot支持静态欢迎页，它首先查找是否有 ~index.html~ ,如果有则优先加载为欢迎页，如果没有找到，则查找索引模板，如果找到其中一个，将它自动使用为程序的欢迎页面。
+
+**** Path Mathching and Content Negotiation
+    SpringMVC可以通过查看请求路径并将其与应用程序中定义的映射进行匹配，将传入的HTTP请求映射到处理程序。
+
+    SpringBoot禁用了后缀名匹配模式， =@GetMapping(/project/Spring)= 不会匹配 GET /project/Spring.json。
+
+**** 模板引擎
+    SpringMVC可以提供动态HTML内容，SpringMVC支持的模板引擎有：
+    + FreeMarker
+    + Groovy
+    + Thymeleaf
+    + Mustache
+
+    *因该尽量避免使用JSP模板引擎，模板将从 src/mian/resources/templates路径中读取*
+
+**** 错误处理
+    默认情况下，SpringBoot提供一个 =/error= Map, 可以处理所有的路径映射错误，并且在servlet容器中注册为 *全局* 错误页面。
+
+***** 自定义错误页面：
+     如果需要显示给定状态代码的自定义HTML错误页面，Thymeleaf模板引擎只需要将HTML页面添加在 =/template/error= 下面即可（其他模板引擎可能会有细微的差别)，错误HTML页面的命名格式也是有要求的。
+     xxx.html, 其中xxx就是错误代码。例如：浏览器请求的页面不存在的错误代码为404,应该命名为404.html。
+
+     
+     
+
+
+
+
+     
