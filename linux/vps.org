@@ -56,14 +56,3 @@
     alias acme.sh=~/.acme.sh/acme.sh # 在.bashrc 中添加一个别名
     acme.sh  --issue -d www.example.com   --standalone  # 80 端口是空闲的, 那么 acme.sh 还能假装自己是一个webserver, 临时听在80 端口, 完成验证:
   #+end_src
-
-
-* docker
-** mysql
-   #+begin_src shell
-     docker run -d --name mysql-1 -p 3306:3306 \
-     -v /home/ubuntu/mysql/data:/var/lib/mysql \
-     -v /home/ubuntu/mysql/conf:/etc/mysql/conf.d \
-     -e MYSQL_ROOT_PASSWORD=wuguipeng \
-     mysql:latest
-   #+end_src
